@@ -1,5 +1,5 @@
-import { CalendarDays, LayoutList, CheckSquare, CalendarRange, BarChart3 } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
+import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AppSidebarProps {
   currentPage: string;
@@ -7,14 +7,15 @@ interface AppSidebarProps {
 }
 
 const navItems = [
-  { id: "today", label: "Today", icon: CalendarDays },
   { id: "planner", label: "Planner", icon: LayoutList },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
-  { id: "weeks", label: "Weeks", icon: CalendarRange },
+  { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "charts", label: "Charts", icon: BarChart3 },
 ];
 
 export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
+  const { signOut } = useAuth();
+
   return (
     <aside className="w-16 lg:w-52 min-h-screen bg-sidebar flex flex-col border-r border-border/50 shrink-0 transition-all duration-300">
       <div className="p-4 lg:px-5 lg:py-6">
@@ -37,8 +38,8 @@ export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
               onClick={() => onNavigate(item.id)}
               className={`
                 flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
-                ${isActive 
-                  ? "bg-sidebar-accent text-foreground" 
+                ${isActive
+                  ? "bg-sidebar-accent text-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
                 }
               `}
@@ -52,6 +53,16 @@ export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
           );
         })}
       </nav>
+
+      <div className="px-2 lg:px-3 pb-4">
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full"
+        >
+          <LogOut className="w-5 h-5 shrink-0" />
+          <span className="hidden lg:block text-sm font-medium">Sair</span>
+        </button>
+      </div>
     </aside>
   );
 }

@@ -1,5 +1,5 @@
 import { 
-  Alarm, 
+  AlarmClock, 
   Dumbbell, 
   BookOpen, 
   Bike, 

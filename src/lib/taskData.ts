@@ -44,7 +44,7 @@ export const categories: Record<CategoryId, Category> = {
 };
 
 export const iconMap: Record<string, React.ComponentType<any>> = {
-  alarm: Alarm,
+  alarm: AlarmClock,
   dumbbell: Dumbbell,
   book: BookOpen,
   bike: Bike,

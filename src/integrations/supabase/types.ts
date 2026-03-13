@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          category: Database["public"]["Enums"]["task_category"]
+          completed: boolean
+          created_at: string
+          description: string | null
+          end_time: string
+          icon: string
+          id: string
+          is_all_day: boolean
+          location: string | null
+          recurrence: Database["public"]["Enums"]["task_recurrence"]
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["task_category"]
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          end_time: string
+          icon?: string
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          recurrence?: Database["public"]["Enums"]["task_recurrence"]
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["task_category"]
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          icon?: string
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          recurrence?: Database["public"]["Enums"]["task_recurrence"]
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +94,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      task_category:
+        | "health"
+        | "work"
+        | "study"
+        | "sports"
+        | "leisure"
+        | "social"
+      task_recurrence: "none" | "daily" | "weekly" | "monthly"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +228,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      task_category: ["health", "work", "study", "sports", "leisure", "social"],
+      task_recurrence: ["none", "daily", "weekly", "monthly"],
+    },
   },
 } as const

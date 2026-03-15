@@ -4,6 +4,7 @@ import { TimelinePlanner } from "@/components/TimelinePlanner";
 import { HyperCharts } from "@/components/HyperCharts";
 import { TaskListPage } from "@/components/TaskListPage";
 import { CalendarPage } from "@/components/CalendarPage";
+import { ProfilePage } from "@/components/ProfilePage";
 import { Menu } from "lucide-react";
 
 const Index = () => {
@@ -15,6 +16,7 @@ const Index = () => {
       case "charts": return <HyperCharts />;
       case "tasks": return <TaskListPage />;
       case "calendar": return <CalendarPage />;
+      case "profile": return <ProfilePage />;
       default: return <TimelinePlanner />;
     }
   };

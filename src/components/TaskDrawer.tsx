@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerTrigger, DrawerClose,
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,64 +8,165 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus } from "lucide-react";
 import { categories, iconMap, type CategoryId } from "@/lib/taskData";
-import type { NewTask } from "@/hooks/useTasks";
+import type { NewTask, DbTask, CustomCategory } from "@/hooks/useTasks";
+import { useCustomCategories } from "@/hooks/useTasks";
 
 interface TaskDrawerProps {
   onSubmit: (task: NewTask) => Promise<any>;
-  defaultDate?: string; // YYYY-MM-DD
+  onUpdate?: (taskId: string, task: Partial<NewTask>) => Promise<any>;
+  defaultDate?: string;
+  editTask?: DbTask | null;
+  onClose?: () => void;
 }
 
 const iconOptions = Object.keys(iconMap);
 
-export function TaskDrawer({ onSubmit, defaultDate }: TaskDrawerProps) {
+const PALETTE_COLORS = [
+  "#ff0080", "#ff6600", "#00d4ff", "#22cc44", "#aa44ff",
+  "#ffcc00", "#ff4444", "#00ff88", "#4488ff", "#ff88cc",
+];
+
+const builtInCategoryIds = Object.keys(categories) as CategoryId[];
+
+export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose }: TaskDrawerProps) {
   const [open, setOpen] = useState(false);
-  const today = defaultDate || new Date().toISOString().slice(0, 10);
+  const { categories: customCats, addCategory } = useCustomCategories();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState(today);
+  const [startDate, setStartDate] = useState("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [isAllDay, setIsAllDay] = useState(false);
-  const [category, setCategory] = useState<CategoryId>("work");
+  const [category, setCategory] = useState<string>("work");
+  const [customCategoryId, setCustomCategoryId] = useState<string | null>(null);
   const [recurrence, setRecurrence] = useState("none");
   const [icon, setIcon] = useState("briefcase");
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // New custom category state
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatColor, setNewCatColor] = useState("#ff0080");
+  const [showNewCat, setShowNewCat] = useState(false);
+
+  // Open drawer when editTask is set
+  useEffect(() => {
+    if (editTask) {
+      setOpen(true);
+      setTitle(editTask.title);
+      setDescription(editTask.description || "");
+      const stDate = new Date(editTask.start_time);
+      const etDate = new Date(editTask.end_time);
+      setStartDate(stDate.toISOString().slice(0, 10));
+      setStartTime(`${String(stDate.getHours()).padStart(2, "0")}:${String(stDate.getMinutes()).padStart(2, "0")}`);
+      setEndTime(`${String(etDate.getHours()).padStart(2, "0")}:${String(etDate.getMinutes()).padStart(2, "0")}`);
+      setIsAllDay(editTask.is_all_day);
+      setCategory(editTask.category);
+      setCustomCategoryId(editTask.custom_category_id);
+      setRecurrence(editTask.recurrence);
+      setIcon(editTask.icon);
+      setLocation(editTask.location || "");
+    }
+  }, [editTask]);
+
   const reset = () => {
-    setTitle(""); setDescription(""); setStartDate(today); setStartTime("09:00");
-    setEndTime("10:00"); setIsAllDay(false); setCategory("work"); setRecurrence("none");
-    setIcon("briefcase"); setLocation("");
+    setTitle(""); setDescription(""); 
+    setStartDate(defaultDate || new Date().toISOString().slice(0, 10));
+    setStartTime("09:00"); setEndTime("10:00"); setIsAllDay(false);
+    setCategory("work"); setCustomCategoryId(null); setRecurrence("none");
+    setIcon("briefcase"); setLocation(""); setNewCatName(""); setShowNewCat(false);
+  };
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (!v) {
+      reset();
+      onClose?.();
+    } else if (!editTask) {
+      setStartDate(defaultDate || new Date().toISOString().slice(0, 10));
+    }
   };
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setLoading(true);
-    const st = isAllDay ? `${startDate}T00:00:00` : `${startDate}T${startTime}:00`;
-    const et = isAllDay ? `${startDate}T23:59:59` : `${startDate}T${endTime}:00`;
-    await onSubmit({
-      title, description, start_time: st, end_time: et,
+
+    // Build proper Date objects from local date + time to get correct ISO
+    const stDate = isAllDay
+      ? new Date(`${startDate}T00:00:00`)
+      : new Date(`${startDate}T${startTime}:00`);
+    const etDate = isAllDay
+      ? new Date(`${startDate}T23:59:59`)
+      : new Date(`${startDate}T${endTime}:00`);
+
+    const taskData: NewTask = {
+      title, description,
+      start_time: stDate.toISOString(),
+      end_time: etDate.toISOString(),
       is_all_day: isAllDay, category, recurrence, icon, location,
-    });
+      custom_category_id: customCategoryId,
+    };
+
+    if (editTask && onUpdate) {
+      await onUpdate(editTask.id, taskData);
+    } else {
+      await onSubmit(taskData);
+    }
     setLoading(false);
     reset();
     setOpen(false);
+    onClose?.();
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCatName.trim()) return;
+    const cat = await addCategory(newCatName.trim(), newCatColor);
+    if (cat) {
+      setCategory("work"); // keep enum valid
+      setCustomCategoryId(cat.id);
+      setShowNewCat(false);
+      setNewCatName("");
+    }
+  };
+
+  const handleCategorySelect = (val: string) => {
+    // Check if it's a custom category id
+    const isCustom = customCats.find(c => c.id === val);
+    if (isCustom) {
+      setCategory("work"); // enum fallback
+      setCustomCategoryId(val);
+    } else {
+      setCategory(val);
+      setCustomCategoryId(null);
+    }
+  };
+
+  const currentCatLabel = customCategoryId
+    ? customCats.find(c => c.id === customCategoryId)?.name || "Custom"
+    : categories[category as CategoryId]?.label || category;
+
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <button className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center glow-pink shadow-lg hover:scale-105 transition-transform">
+    <Drawer open={open} onOpenChange={handleOpenChange}>
+      {!editTask && (
+        <button
+          onClick={() => handleOpenChange(true)}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center glow-pink shadow-lg hover:scale-105 transition-transform"
+        >
           <Plus className="w-6 h-6" />
         </button>
-      </DrawerTrigger>
+      )}
       <DrawerContent className="bg-card border-border/30 max-h-[85vh]">
         <DrawerHeader>
-          <DrawerTitle className="font-display text-foreground">Nova Tarefa</DrawerTitle>
-          <DrawerDescription className="text-muted-foreground">Preencha os dados da tarefa</DrawerDescription>
+          <DrawerTitle className="font-display text-foreground">
+            {editTask ? "Editar Tarefa" : "Nova Tarefa"}
+          </DrawerTitle>
+          <DrawerDescription className="text-muted-foreground">
+            {editTask ? "Altere os dados da tarefa" : "Preencha os dados da tarefa"}
+          </DrawerDescription>
         </DrawerHeader>
         <div className="px-4 pb-4 overflow-y-auto flex flex-col gap-4">
           <div>
@@ -101,16 +202,35 @@ export function TaskDrawer({ onSubmit, defaultDate }: TaskDrawerProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">Categoria</Label>
-              <Select value={category} onValueChange={v => setCategory(v as CategoryId)}>
+              <Select value={customCategoryId || category} onValueChange={handleCategorySelect}>
                 <SelectTrigger className="bg-secondary border-border/50 mt-1">
-                  <SelectValue />
+                  <SelectValue>{currentCatLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border/30">
-                  {(Object.keys(categories) as CategoryId[]).map(id => (
-                    <SelectItem key={id} value={id}>{categories[id].label}</SelectItem>
+                  {builtInCategoryIds.map(id => (
+                    <SelectItem key={id} value={id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(${categories[id].hsl})` }} />
+                        {categories[id].label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  {customCats.map(cc => (
+                    <SelectItem key={cc.id} value={cc.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cc.color }} />
+                        {cc.name}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <button
+                onClick={() => setShowNewCat(!showNewCat)}
+                className="text-[10px] text-primary hover:underline mt-1"
+              >
+                + Nova categoria
+              </button>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Recorrência</Label>
@@ -127,6 +247,30 @@ export function TaskDrawer({ onSubmit, defaultDate }: TaskDrawerProps) {
               </Select>
             </div>
           </div>
+
+          {showNewCat && (
+            <div className="bg-secondary/50 rounded-xl p-3 border border-border/30 flex flex-col gap-2">
+              <Label className="text-xs text-muted-foreground">Nova Categoria</Label>
+              <Input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="Nome da categoria" className="bg-secondary border-border/50" />
+              <div>
+                <Label className="text-xs text-muted-foreground">Cor</Label>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  {PALETTE_COLORS.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setNewCatColor(c)}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${newCatColor === c ? "border-foreground scale-110" : "border-transparent"}`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <Button size="sm" onClick={handleCreateCategory} className="bg-primary hover:bg-primary/90 text-primary-foreground mt-1">
+                Criar Categoria
+              </Button>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">Ícone</Label>
@@ -152,7 +296,7 @@ export function TaskDrawer({ onSubmit, defaultDate }: TaskDrawerProps) {
             <Button variant="outline" className="flex-1 border-border/50">Cancelar</Button>
           </DrawerClose>
           <Button onClick={handleSubmit} disabled={loading || !title.trim()} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground glow-pink">
-            {loading ? "Salvando..." : "Criar Tarefa"}
+            {loading ? "Salvando..." : editTask ? "Salvar Alterações" : "Criar Tarefa"}
           </Button>
         </DrawerFooter>
       </DrawerContent>

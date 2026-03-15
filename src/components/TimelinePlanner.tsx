@@ -2,10 +2,11 @@ import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { categories, iconMap, type CategoryId } from "@/lib/taskData";
 import { useState, useEffect } from "react";
-import { useTodayTasks, type DbTask } from "@/hooks/useTasks";
+import { useTodayTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
 
-type NodeStatus = "completed" | "active" | "future";
+// "past" = time has passed but NOT explicitly completed by user
+type NodeStatus = "completed" | "active" | "future" | "past";
 
 function getNodeStatus(task: DbTask, nowMinutes: number): NodeStatus {
   if (task.completed) return "completed";
@@ -14,7 +15,7 @@ function getNodeStatus(task: DbTask, nowMinutes: number): NodeStatus {
   const startMin = st.getHours() * 60 + st.getMinutes();
   const endMin = et.getHours() * 60 + et.getMinutes();
   if (nowMinutes >= startMin && nowMinutes < endMin) return "active";
-  if (nowMinutes >= endMin) return "completed";
+  if (nowMinutes >= endMin) return "past";
   return "future";
 }
 
@@ -36,14 +37,28 @@ function formatDurationMinutes(startTime: string, endTime: string): string {
   return `${Math.round(diff)} min`;
 }
 
-function TimelineNode({ task, status, index, onToggle }: { task: DbTask; status: NodeStatus; index: number; onToggle: () => void }) {
+function getCatInfo(task: DbTask, customCats: any[]) {
+  if (task.custom_category_id) {
+    const cc = customCats.find(c => c.id === task.custom_category_id);
+    if (cc) return { label: cc.name, hsl: "", color: "", glowClass: "", hex: cc.color };
+  }
   const cat = categories[task.category as CategoryId] || categories.work;
+  return { ...cat, hex: "" };
+}
+
+function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
+  task: DbTask; status: NodeStatus; index: number; onToggle: () => void; onClick: () => void; customCats: any[];
+}) {
+  const catInfo = getCatInfo(task, customCats);
   const IconComp = iconMap[task.icon];
   const isCompleted = status === "completed";
   const isActive = status === "active";
+  const isPast = status === "past";
   const isFuture = status === "future";
   const st = new Date(task.start_time);
   const et = new Date(task.end_time);
+
+  const catColor = catInfo.hex || `hsl(${catInfo.hsl})`;
 
   return (
     <motion.div
@@ -55,11 +70,15 @@ function TimelineNode({ task, status, index, onToggle }: { task: DbTask; status:
       <div className="relative z-10 shrink-0">
         <div
           className={`
-            w-14 h-14 lg:w-16 lg:h-16 rounded-full flex items-center justify-center transition-all duration-500
-            ${isCompleted ? `${cat.color} ${cat.glowClass}` : ""}
-            ${isActive ? `${cat.color} ${cat.glowClass} animate-pulse-glow` : ""}
+            w-14 h-14 lg:w-16 lg:h-16 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer
+            ${isCompleted ? `${catInfo.color || ""} ${catInfo.glowClass || ""}` : ""}
+            ${isActive ? `${catInfo.color || ""} ${catInfo.glowClass || ""} animate-pulse-glow` : ""}
+            ${isPast ? "opacity-50" : ""}
             ${isFuture ? "bg-inactive" : ""}
           `}
+          style={(isCompleted || isActive || isPast) && catInfo.hex ? { backgroundColor: catInfo.hex } : 
+                 (isPast && !catInfo.hex) ? { backgroundColor: `hsl(${catInfo.hsl} / 0.4)` } : undefined}
+          onClick={onClick}
         >
           {isCompleted ? (
             <Check className="w-6 h-6 lg:w-7 lg:h-7 text-background" strokeWidth={3} />
@@ -69,7 +88,7 @@ function TimelineNode({ task, status, index, onToggle }: { task: DbTask; status:
         </div>
       </div>
 
-      <div className={`pt-1 flex-1 min-w-0 ${isCompleted ? "opacity-60" : ""}`}>
+      <div className={`pt-1 flex-1 min-w-0 cursor-pointer ${isPast && !isCompleted ? "opacity-60" : ""}`} onClick={onClick}>
         <p className="text-xs text-muted-foreground font-body">
           {formatTimeFromDate(st)} - {formatTimeFromDate(et)} ({formatDurationMinutes(task.start_time, task.end_time)})
         </p>
@@ -78,9 +97,10 @@ function TimelineNode({ task, status, index, onToggle }: { task: DbTask; status:
             text-base lg:text-lg font-display font-semibold mt-0.5
             ${isCompleted ? "line-through text-muted-foreground" : ""}
             ${isActive ? "text-foreground" : ""}
+            ${isPast ? "text-muted-foreground" : ""}
             ${isFuture ? "text-foreground" : ""}
           `}
-          style={isActive ? { color: `hsl(${cat.hsl})` } : undefined}
+          style={isActive ? { color: catColor } : undefined}
         >
           {task.title}
         </h3>
@@ -93,11 +113,11 @@ function TimelineNode({ task, status, index, onToggle }: { task: DbTask; status:
           <span
             className="text-[10px] font-medium px-2 py-0.5 rounded-full"
             style={{
-              backgroundColor: isFuture ? "hsl(0 0% 16%)" : `hsl(${cat.hsl} / 0.15)`,
-              color: isFuture ? "hsl(0 0% 45%)" : `hsl(${cat.hsl})`,
+              backgroundColor: isFuture ? "hsl(0 0% 16%)" : (catInfo.hex ? `${catInfo.hex}26` : `hsl(${catInfo.hsl} / 0.15)`),
+              color: isFuture ? "hsl(0 0% 45%)" : catColor,
             }}
           >
-            {cat.label}
+            {catInfo.label}
           </span>
         </div>
       </div>
@@ -107,11 +127,11 @@ function TimelineNode({ task, status, index, onToggle }: { task: DbTask; status:
           onClick={onToggle}
           className={`
             w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer
-            ${isCompleted ? "" : "border-muted-foreground/30 hover:border-muted-foreground"}
+            ${task.completed ? "" : "border-muted-foreground/30 hover:border-muted-foreground"}
           `}
-          style={isCompleted ? { borderColor: `hsl(${cat.hsl})`, backgroundColor: `hsl(${cat.hsl} / 0.2)` } : undefined}
+          style={task.completed ? { borderColor: catColor, backgroundColor: `${catInfo.hex || `hsl(${catInfo.hsl}`} / 0.2)` } : undefined}
         >
-          {isCompleted && <Check className="w-3.5 h-3.5" style={{ color: `hsl(${cat.hsl})` }} />}
+          {task.completed && <Check className="w-3.5 h-3.5" style={{ color: catColor }} />}
         </button>
       </div>
     </motion.div>
@@ -123,7 +143,9 @@ export function TimelinePlanner() {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
   });
-  const { tasks, loading, addTask, toggleComplete } = useTodayTasks();
+  const { tasks, loading, addTask, updateTask, toggleComplete } = useTodayTasks();
+  const { categories: customCats } = useCustomCategories();
+  const [editTask, setEditTask] = useState<DbTask | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -133,7 +155,6 @@ export function TimelinePlanner() {
     return () => clearInterval(interval);
   }, []);
 
-  // Progress line
   let progressPercent = 0;
   if (tasks.length > 0) {
     const firstStart = new Date(tasks[0].start_time);
@@ -183,13 +204,20 @@ export function TimelinePlanner() {
                 status={getNodeStatus(task, currentTime)}
                 index={i}
                 onToggle={() => toggleComplete(task.id, !task.completed)}
+                onClick={() => setEditTask(task)}
+                customCats={customCats}
               />
             ))}
           </div>
         </div>
       )}
 
-      <TaskDrawer onSubmit={addTask} />
+      <TaskDrawer
+        onSubmit={addTask}
+        onUpdate={updateTask}
+        editTask={editTask}
+        onClose={() => setEditTask(null)}
+      />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import type { CategoryId } from "@/lib/taskData";
 
 export interface DbTask {
   id: string;
@@ -11,13 +10,14 @@ export interface DbTask {
   start_time: string;
   end_time: string;
   is_all_day: boolean;
-  category: CategoryId;
+  category: string;
   recurrence: string;
   completed: boolean;
   icon: string;
   location: string;
   created_at: string;
   updated_at: string;
+  custom_category_id: string | null;
 }
 
 export interface NewTask {
@@ -26,10 +26,19 @@ export interface NewTask {
   start_time: string;
   end_time: string;
   is_all_day?: boolean;
-  category: CategoryId;
+  category: string;
   recurrence?: string;
   icon?: string;
   location?: string;
+  custom_category_id?: string | null;
+}
+
+export interface CustomCategory {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
 }
 
 export function useTasks(dateFilter?: string) {
@@ -75,7 +84,29 @@ export function useTasks(dateFilter?: string) {
       recurrence: task.recurrence || "none",
       icon: task.icon || "briefcase",
       location: task.location || "",
+      custom_category_id: task.custom_category_id || null,
     } as any);
+    if (!error) await fetchTasks();
+    return error;
+  };
+
+  const updateTask = async (taskId: string, task: Partial<NewTask>) => {
+    const updateData: any = { updated_at: new Date().toISOString() };
+    if (task.title !== undefined) updateData.title = task.title;
+    if (task.description !== undefined) updateData.description = task.description;
+    if (task.start_time !== undefined) updateData.start_time = task.start_time;
+    if (task.end_time !== undefined) updateData.end_time = task.end_time;
+    if (task.is_all_day !== undefined) updateData.is_all_day = task.is_all_day;
+    if (task.category !== undefined) updateData.category = task.category;
+    if (task.recurrence !== undefined) updateData.recurrence = task.recurrence;
+    if (task.icon !== undefined) updateData.icon = task.icon;
+    if (task.location !== undefined) updateData.location = task.location;
+    if (task.custom_category_id !== undefined) updateData.custom_category_id = task.custom_category_id;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update(updateData)
+      .eq("id", taskId);
     if (!error) await fetchTasks();
     return error;
   };
@@ -93,7 +124,7 @@ export function useTasks(dateFilter?: string) {
     if (!error) await fetchTasks();
   };
 
-  return { tasks, loading, addTask, toggleComplete, deleteTask, refetch: fetchTasks };
+  return { tasks, loading, addTask, updateTask, toggleComplete, deleteTask, refetch: fetchTasks };
 }
 
 export function useAllTasks() {
@@ -124,4 +155,37 @@ export function useCompletedTasksHistory() {
   }, [user]);
 
   return tasks;
+}
+
+export function useCustomCategories() {
+  const { user } = useAuth();
+  const [categories, setCategories] = useState<CustomCategory[]>([]);
+
+  const fetchCategories = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("custom_categories")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name");
+    if (data) setCategories(data as unknown as CustomCategory[]);
+  }, [user]);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const addCategory = async (name: string, color: string) => {
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from("custom_categories")
+      .insert({ user_id: user.id, name, color } as any)
+      .select()
+      .single();
+    if (!error && data) {
+      await fetchCategories();
+      return data as unknown as CustomCategory;
+    }
+    return null;
+  };
+
+  return { categories, addCategory, refetch: fetchCategories };
 }

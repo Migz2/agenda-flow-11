@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, X, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Check } from "lucide-react";
 import { categories, type CategoryId } from "@/lib/taskData";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";

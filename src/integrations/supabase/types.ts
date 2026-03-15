@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      custom_categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -40,6 +64,7 @@ export type Database = {
           category: Database["public"]["Enums"]["task_category"]
           completed: boolean
           created_at: string
+          custom_category_id: string | null
           description: string | null
           end_time: string
           icon: string
@@ -56,6 +81,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["task_category"]
           completed?: boolean
           created_at?: string
+          custom_category_id?: string | null
           description?: string | null
           end_time: string
           icon?: string
@@ -72,6 +98,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["task_category"]
           completed?: boolean
           created_at?: string
+          custom_category_id?: string | null
           description?: string | null
           end_time?: string
           icon?: string
@@ -84,7 +111,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_custom_category_id_fkey"
+            columns: ["custom_category_id"]
+            isOneToOne: false
+            referencedRelation: "custom_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

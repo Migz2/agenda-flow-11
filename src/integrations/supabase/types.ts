@@ -61,7 +61,7 @@ export type Database = {
       }
       tasks: {
         Row: {
-          category: Database["public"]["Enums"]["task_category"]
+          category: string
           completed: boolean
           created_at: string
           custom_category_id: string | null
@@ -78,7 +78,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          category?: Database["public"]["Enums"]["task_category"]
+          category?: string
           completed?: boolean
           created_at?: string
           custom_category_id?: string | null
@@ -95,7 +95,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          category?: Database["public"]["Enums"]["task_category"]
+          category?: string
           completed?: boolean
           created_at?: string
           custom_category_id?: string | null
@@ -129,13 +129,6 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      task_category:
-        | "health"
-        | "work"
-        | "study"
-        | "sports"
-        | "leisure"
-        | "social"
       task_recurrence: "none" | "daily" | "weekly" | "monthly"
     }
     CompositeTypes: {
@@ -264,7 +257,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      task_category: ["health", "work", "study", "sports", "leisure", "social"],
       task_recurrence: ["none", "daily", "weekly", "monthly"],
     },
   },

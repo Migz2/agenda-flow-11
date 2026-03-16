@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Trash2 } from "lucide-react";
-import { categories, iconMap, type CategoryId } from "@/lib/taskData";
+import { iconMap } from "@/lib/taskData";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
 
@@ -19,10 +19,9 @@ export function TaskListPage() {
   const getCatInfo = (task: DbTask) => {
     if (task.custom_category_id) {
       const cc = customCats.find(c => c.id === task.custom_category_id);
-      if (cc) return { label: cc.name, hsl: "", hex: cc.color };
+      if (cc) return { label: cc.name, color: cc.color };
     }
-    const cat = categories[task.category as CategoryId] || categories.work;
-    return { ...cat, hex: "" };
+    return { label: task.category || "Geral", color: "#666" };
   };
 
   return (
@@ -47,7 +46,6 @@ export function TaskListPage() {
             {pending.map((task, i) => {
               const catInfo = getCatInfo(task);
               const Icon = iconMap[task.icon];
-              const catColor = catInfo.hex || `hsl(${catInfo.hsl})`;
               return (
                 <motion.div
                   key={task.id}
@@ -60,9 +58,9 @@ export function TaskListPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, true); }}
                     className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 hover:scale-110 transition-transform"
-                    style={{ backgroundColor: catInfo.hex ? `${catInfo.hex}26` : `hsl(${catInfo.hsl} / 0.15)` }}
+                    style={{ backgroundColor: `${catInfo.color}26` }}
                   >
-                    {Icon && <Icon className="w-5 h-5" style={{ color: catColor }} />}
+                    {Icon && <Icon className="w-5 h-5" style={{ color: catInfo.color }} />}
                   </button>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-display font-semibold text-foreground truncate">{task.title}</p>
@@ -70,7 +68,7 @@ export function TaskListPage() {
                   </div>
                   <span
                     className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0"
-                    style={{ backgroundColor: catInfo.hex ? `${catInfo.hex}26` : `hsl(${catInfo.hsl} / 0.15)`, color: catColor }}
+                    style={{ backgroundColor: `${catInfo.color}26`, color: catInfo.color }}
                   >
                     {catInfo.label}
                   </span>
@@ -86,7 +84,6 @@ export function TaskListPage() {
           <div className="flex flex-col gap-3">
             {completed.map((task, i) => {
               const catInfo = getCatInfo(task);
-              const catColor = catInfo.hex || `hsl(${catInfo.hsl})`;
               return (
                 <motion.div
                   key={task.id}
@@ -99,9 +96,9 @@ export function TaskListPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, false); }}
                     className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: catInfo.hex ? `${catInfo.hex}1a` : `hsl(${catInfo.hsl} / 0.1)` }}
+                    style={{ backgroundColor: `${catInfo.color}1a` }}
                   >
-                    <Check className="w-5 h-5" style={{ color: catColor }} />
+                    <Check className="w-5 h-5" style={{ color: catInfo.color }} />
                   </button>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-display font-semibold text-muted-foreground line-through truncate">{task.title}</p>

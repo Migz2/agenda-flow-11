@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, X, Plus, Check } from "lucide-react";
-import { categories, type CategoryId } from "@/lib/taskData";
+import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
 
@@ -18,8 +17,7 @@ function getCatColor(task: DbTask, customCats: any[]) {
     const cc = customCats.find((c: any) => c.id === task.custom_category_id);
     if (cc) return cc.color;
   }
-  const cat = categories[task.category as CategoryId];
-  return cat ? `hsl(${cat.hsl})` : "hsl(0 0% 50%)";
+  return "#666";
 }
 
 function formatShortTime(iso: string) {
@@ -73,7 +71,6 @@ export function CalendarPage() {
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1">Visão Mensal</h2>
       </div>
 
-      {/* Month nav */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="w-5 h-5" />
@@ -86,19 +83,13 @@ export function CalendarPage() {
         </button>
       </div>
 
-      {/* Week day headers */}
       <div className="grid grid-cols-7 border-b border-border/30">
         {weekDays.map(d => (
           <div key={d} className="text-center text-[10px] text-muted-foreground font-body py-2 font-medium">{d}</div>
         ))}
       </div>
 
-      {/* Day cells - Google Calendar style */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="grid grid-cols-7"
-      >
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-7">
         {cells.map((day, i) => {
           if (day === null) return <div key={`empty-${i}`} className="min-h-[90px] lg:min-h-[110px] border-b border-r border-border/20" />;
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -140,20 +131,15 @@ export function CalendarPage() {
         })}
       </motion.div>
 
-      {/* Day detail modal */}
       <AnimatePresence>
         {selectedDate && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
             onClick={() => setSelectedDate(null)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
               className="bg-card rounded-2xl p-5 border border-border/30 w-full max-w-md max-h-[70vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >

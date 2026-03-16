@@ -8,10 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus } from "lucide-react";
-import { categories, iconMap, type CategoryId } from "@/lib/taskData";
-import type { NewTask, DbTask, CustomCategory } from "@/hooks/useTasks";
+import { iconMap } from "@/lib/taskData";
+import type { NewTask, DbTask } from "@/hooks/useTasks";
 import { useCustomCategories } from "@/hooks/useTasks";
 
 interface TaskDrawerProps {
@@ -29,8 +28,6 @@ const PALETTE_COLORS = [
   "#ffcc00", "#ff4444", "#00ff88", "#4488ff", "#ff88cc",
 ];
 
-const builtInCategoryIds = Object.keys(categories) as CategoryId[];
-
 export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose }: TaskDrawerProps) {
   const [open, setOpen] = useState(false);
   const { categories: customCats, addCategory } = useCustomCategories();
@@ -41,19 +38,16 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [isAllDay, setIsAllDay] = useState(false);
-  const [category, setCategory] = useState<string>("work");
   const [customCategoryId, setCustomCategoryId] = useState<string | null>(null);
   const [recurrence, setRecurrence] = useState("none");
   const [icon, setIcon] = useState("briefcase");
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // New custom category state
   const [newCatName, setNewCatName] = useState("");
   const [newCatColor, setNewCatColor] = useState("#ff0080");
   const [showNewCat, setShowNewCat] = useState(false);
 
-  // Open drawer when editTask is set
   useEffect(() => {
     if (editTask) {
       setOpen(true);
@@ -65,7 +59,6 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
       setStartTime(`${String(stDate.getHours()).padStart(2, "0")}:${String(stDate.getMinutes()).padStart(2, "0")}`);
       setEndTime(`${String(etDate.getHours()).padStart(2, "0")}:${String(etDate.getMinutes()).padStart(2, "0")}`);
       setIsAllDay(editTask.is_all_day);
-      setCategory(editTask.category);
       setCustomCategoryId(editTask.custom_category_id);
       setRecurrence(editTask.recurrence);
       setIcon(editTask.icon);
@@ -74,28 +67,23 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
   }, [editTask]);
 
   const reset = () => {
-    setTitle(""); setDescription(""); 
+    setTitle(""); setDescription("");
     setStartDate(defaultDate || new Date().toISOString().slice(0, 10));
     setStartTime("09:00"); setEndTime("10:00"); setIsAllDay(false);
-    setCategory("work"); setCustomCategoryId(null); setRecurrence("none");
+    setCustomCategoryId(null); setRecurrence("none");
     setIcon("briefcase"); setLocation(""); setNewCatName(""); setShowNewCat(false);
   };
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
-    if (!v) {
-      reset();
-      onClose?.();
-    } else if (!editTask) {
-      setStartDate(defaultDate || new Date().toISOString().slice(0, 10));
-    }
+    if (!v) { reset(); onClose?.(); }
+    else if (!editTask) { setStartDate(defaultDate || new Date().toISOString().slice(0, 10)); }
   };
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setLoading(true);
 
-    // Build proper Date objects from local date + time to get correct ISO
     const stDate = isAllDay
       ? new Date(`${startDate}T00:00:00`)
       : new Date(`${startDate}T${startTime}:00`);
@@ -103,11 +91,17 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
       ? new Date(`${startDate}T23:59:59`)
       : new Date(`${startDate}T${endTime}:00`);
 
+    const catName = customCategoryId
+      ? (customCats.find(c => c.id === customCategoryId)?.name || "general")
+      : "general";
+
     const taskData: NewTask = {
       title, description,
       start_time: stDate.toISOString(),
       end_time: etDate.toISOString(),
-      is_all_day: isAllDay, category, recurrence, icon, location,
+      is_all_day: isAllDay,
+      category: catName,
+      recurrence, icon, location,
       custom_category_id: customCategoryId,
     };
 
@@ -126,28 +120,15 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
     if (!newCatName.trim()) return;
     const cat = await addCategory(newCatName.trim(), newCatColor);
     if (cat) {
-      setCategory("work"); // keep enum valid
       setCustomCategoryId(cat.id);
       setShowNewCat(false);
       setNewCatName("");
     }
   };
 
-  const handleCategorySelect = (val: string) => {
-    // Check if it's a custom category id
-    const isCustom = customCats.find(c => c.id === val);
-    if (isCustom) {
-      setCategory("work"); // enum fallback
-      setCustomCategoryId(val);
-    } else {
-      setCategory(val);
-      setCustomCategoryId(null);
-    }
-  };
-
   const currentCatLabel = customCategoryId
-    ? customCats.find(c => c.id === customCategoryId)?.name || "Custom"
-    : categories[category as CategoryId]?.label || category;
+    ? customCats.find(c => c.id === customCategoryId)?.name || "Selecionar"
+    : "Selecionar categoria";
 
   return (
     <Drawer open={open} onOpenChange={handleOpenChange}>
@@ -202,19 +183,14 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">Categoria</Label>
-              <Select value={customCategoryId || category} onValueChange={handleCategorySelect}>
+              <Select value={customCategoryId || "__none"} onValueChange={v => setCustomCategoryId(v === "__none" ? null : v)}>
                 <SelectTrigger className="bg-secondary border-border/50 mt-1">
                   <SelectValue>{currentCatLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border/30">
-                  {builtInCategoryIds.map(id => (
-                    <SelectItem key={id} value={id}>
-                      <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(${categories[id].hsl})` }} />
-                        {categories[id].label}
-                      </span>
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="__none">
+                    <span className="text-muted-foreground">Sem categoria</span>
+                  </SelectItem>
                   {customCats.map(cc => (
                     <SelectItem key={cc.id} value={cc.id}>
                       <span className="flex items-center gap-2">
@@ -225,10 +201,7 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
                   ))}
                 </SelectContent>
               </Select>
-              <button
-                onClick={() => setShowNewCat(!showNewCat)}
-                className="text-[10px] text-primary hover:underline mt-1"
-              >
+              <button onClick={() => setShowNewCat(!showNewCat)} className="text-[10px] text-primary hover:underline mt-1">
                 + Nova categoria
               </button>
             </div>

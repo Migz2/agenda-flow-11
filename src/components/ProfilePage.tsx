@@ -62,7 +62,6 @@ export function ProfilePage() {
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1">Perfil</h2>
       </div>
 
-      {/* User info */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -108,13 +107,12 @@ export function ProfilePage() {
         </div>
       </motion.div>
 
-      {/* Stats */}
       <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-4">Resumo de Performance</h3>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={ListTodo} label="Total de Tarefas" value={String(totalTasks)} color="hsl(186, 100%, 50%)" />
-        <StatCard icon={CheckCircle} label="Concluídas" value={String(totalCompleted)} color="hsl(110, 100%, 55%)" />
-        <StatCard icon={BarChart3} label="Pendentes" value={String(totalPending)} color="hsl(22, 100%, 50%)" />
-        <StatCard icon={TrendingUp} label="Taxa de Conclusão" value={`${rate}%`} color="hsl(330, 100%, 50%)" />
+        <StatCard icon={ListTodo} label="Total de Tarefas" value={String(totalTasks)} color="#00d4ff" />
+        <StatCard icon={CheckCircle} label="Concluídas" value={String(totalCompleted)} color="#22cc44" />
+        <StatCard icon={BarChart3} label="Pendentes" value={String(totalPending)} color="#ff6600" />
+        <StatCard icon={TrendingUp} label="Taxa de Conclusão" value={`${rate}%`} color="#ff0080" />
       </div>
     </div>
   );

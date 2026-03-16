@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle } from "lucide-react";
+import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AppSidebarProps {
@@ -11,6 +11,7 @@ const navItems = [
   { id: "tasks", label: "Tasks", icon: CheckSquare },
   { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "charts", label: "Charts", icon: BarChart3 },
+  { id: "study", label: "Estudos", icon: GraduationCap },
   { id: "profile", label: "Perfil", icon: UserCircle },
 ];
 

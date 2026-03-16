@@ -5,6 +5,7 @@ import { HyperCharts } from "@/components/HyperCharts";
 import { TaskListPage } from "@/components/TaskListPage";
 import { CalendarPage } from "@/components/CalendarPage";
 import { ProfilePage } from "@/components/ProfilePage";
+import { StudyRoutineGenerator } from "@/components/StudyRoutineGenerator";
 import { Menu } from "lucide-react";
 
 const Index = () => {
@@ -17,6 +18,7 @@ const Index = () => {
       case "tasks": return <TaskListPage />;
       case "calendar": return <CalendarPage />;
       case "profile": return <ProfilePage />;
+      case "study": return <StudyRoutineGenerator />;
       default: return <TimelinePlanner />;
     }
   };

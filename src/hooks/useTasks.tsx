@@ -80,12 +80,32 @@ export function useTasks(dateFilter?: string) {
       start_time: task.start_time,
       end_time: task.end_time,
       is_all_day: task.is_all_day || false,
-      category: task.category,
+      category: task.category || "general",
       recurrence: task.recurrence || "none",
       icon: task.icon || "briefcase",
       location: task.location || "",
       custom_category_id: task.custom_category_id || null,
     } as any);
+    if (!error) await fetchTasks();
+    return error;
+  };
+
+  const addTasksBatch = async (tasksList: NewTask[]) => {
+    if (!user || tasksList.length === 0) return;
+    const rows = tasksList.map(task => ({
+      user_id: user.id,
+      title: task.title,
+      description: task.description || "",
+      start_time: task.start_time,
+      end_time: task.end_time,
+      is_all_day: task.is_all_day || false,
+      category: task.category || "general",
+      recurrence: task.recurrence || "none",
+      icon: task.icon || "book",
+      location: task.location || "",
+      custom_category_id: task.custom_category_id || null,
+    }));
+    const { error } = await supabase.from("tasks").insert(rows as any);
     if (!error) await fetchTasks();
     return error;
   };
@@ -124,7 +144,7 @@ export function useTasks(dateFilter?: string) {
     if (!error) await fetchTasks();
   };
 
-  return { tasks, loading, addTask, updateTask, toggleComplete, deleteTask, refetch: fetchTasks };
+  return { tasks, loading, addTask, addTasksBatch, updateTask, toggleComplete, deleteTask, refetch: fetchTasks };
 }
 
 export function useAllTasks() {
@@ -134,6 +154,29 @@ export function useAllTasks() {
 export function useTodayTasks() {
   const today = new Date().toISOString().slice(0, 10);
   return useTasks(today);
+}
+
+export function useOverdueTasks() {
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<DbTask[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetch = async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("completed", false)
+        .lt("start_time", `${today}T00:00:00`)
+        .order("start_time", { ascending: false });
+      if (data) setTasks(data as unknown as DbTask[]);
+    };
+    fetch();
+  }, [user]);
+
+  return tasks;
 }
 
 export function useCompletedTasksHistory() {

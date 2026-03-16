@@ -1,11 +1,10 @@
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
-import { categories, iconMap, type CategoryId } from "@/lib/taskData";
+import { Check, AlertTriangle } from "lucide-react";
+import { iconMap } from "@/lib/taskData";
 import { useState, useEffect } from "react";
-import { useTodayTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
+import { useTodayTasks, useOverdueTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
 
-// "past" = time has passed but NOT explicitly completed by user
 type NodeStatus = "completed" | "active" | "future" | "past";
 
 function getNodeStatus(task: DbTask, nowMinutes: number): NodeStatus {
@@ -40,10 +39,9 @@ function formatDurationMinutes(startTime: string, endTime: string): string {
 function getCatInfo(task: DbTask, customCats: any[]) {
   if (task.custom_category_id) {
     const cc = customCats.find(c => c.id === task.custom_category_id);
-    if (cc) return { label: cc.name, hsl: "", color: "", glowClass: "", hex: cc.color };
+    if (cc) return { label: cc.name, color: cc.color };
   }
-  const cat = categories[task.category as CategoryId] || categories.work;
-  return { ...cat, hex: "" };
+  return { label: task.category || "Geral", color: "#666" };
 }
 
 function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
@@ -57,8 +55,7 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
   const isFuture = status === "future";
   const st = new Date(task.start_time);
   const et = new Date(task.end_time);
-
-  const catColor = catInfo.hex || `hsl(${catInfo.hsl})`;
+  const catColor = catInfo.color;
 
   return (
     <motion.div
@@ -69,15 +66,12 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
     >
       <div className="relative z-10 shrink-0">
         <div
-          className={`
-            w-14 h-14 lg:w-16 lg:h-16 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer
-            ${isCompleted ? `${catInfo.color || ""} ${catInfo.glowClass || ""}` : ""}
-            ${isActive ? `${catInfo.color || ""} ${catInfo.glowClass || ""} animate-pulse-glow` : ""}
+          className={`w-14 h-14 lg:w-16 lg:h-16 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer
+            ${isActive ? "animate-pulse-glow" : ""}
             ${isPast ? "opacity-50" : ""}
             ${isFuture ? "bg-inactive" : ""}
           `}
-          style={(isCompleted || isActive || isPast) && catInfo.hex ? { backgroundColor: catInfo.hex } : 
-                 (isPast && !catInfo.hex) ? { backgroundColor: `hsl(${catInfo.hsl} / 0.4)` } : undefined}
+          style={(isCompleted || isActive || isPast) ? { backgroundColor: isPast && !isCompleted ? `${catColor}66` : catColor } : undefined}
           onClick={onClick}
         >
           {isCompleted ? (
@@ -93,8 +87,7 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
           {formatTimeFromDate(st)} - {formatTimeFromDate(et)} ({formatDurationMinutes(task.start_time, task.end_time)})
         </p>
         <h3
-          className={`
-            text-base lg:text-lg font-display font-semibold mt-0.5
+          className={`text-base lg:text-lg font-display font-semibold mt-0.5
             ${isCompleted ? "line-through text-muted-foreground" : ""}
             ${isActive ? "text-foreground" : ""}
             ${isPast ? "text-muted-foreground" : ""}
@@ -105,15 +98,13 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
           {task.title}
         </h3>
         {task.location && (
-          <p className={`text-xs mt-1 ${isFuture ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
-            📍 {task.location}
-          </p>
+          <p className={`text-xs mt-1 ${isFuture ? "text-muted-foreground/60" : "text-muted-foreground"}`}>📍 {task.location}</p>
         )}
         <div className="mt-1.5">
           <span
             className="text-[10px] font-medium px-2 py-0.5 rounded-full"
             style={{
-              backgroundColor: isFuture ? "hsl(0 0% 16%)" : (catInfo.hex ? `${catInfo.hex}26` : `hsl(${catInfo.hsl} / 0.15)`),
+              backgroundColor: isFuture ? "hsl(0 0% 16%)" : `${catColor}26`,
               color: isFuture ? "hsl(0 0% 45%)" : catColor,
             }}
           >
@@ -125,16 +116,42 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
       <div className="shrink-0 pt-3">
         <button
           onClick={onToggle}
-          className={`
-            w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer
+          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer
             ${task.completed ? "" : "border-muted-foreground/30 hover:border-muted-foreground"}
           `}
-          style={task.completed ? { borderColor: catColor, backgroundColor: `${catInfo.hex || `hsl(${catInfo.hsl}`} / 0.2)` } : undefined}
+          style={task.completed ? { borderColor: catColor, backgroundColor: `${catColor}33` } : undefined}
         >
           {task.completed && <Check className="w-3.5 h-3.5" style={{ color: catColor }} />}
         </button>
       </div>
     </motion.div>
+  );
+}
+
+function OverdueCard({ task, customCats, onToggle, onClick }: { task: DbTask; customCats: any[]; onToggle: () => void; onClick: () => void }) {
+  const catInfo = getCatInfo(task, customCats);
+  const daysAgo = Math.floor((Date.now() - new Date(task.start_time).getTime()) / 86400000);
+
+  return (
+    <div
+      className="bg-card/60 rounded-xl p-3 border border-border/20 cursor-pointer hover:border-border/50 transition-colors"
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catInfo.color }} />
+        <span className="text-xs text-muted-foreground truncate">{catInfo.label}</span>
+      </div>
+      <p className="text-sm font-display font-semibold text-foreground truncate">{task.title}</p>
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-[10px] text-destructive">{daysAgo}d atrás</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="w-5 h-5 rounded-full border border-muted-foreground/30 hover:border-foreground flex items-center justify-center transition-colors"
+        >
+          <Check className="w-3 h-3 text-muted-foreground" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -144,6 +161,7 @@ export function TimelinePlanner() {
     return now.getHours() * 60 + now.getMinutes();
   });
   const { tasks, loading, addTask, updateTask, toggleComplete } = useTodayTasks();
+  const overdueTasks = useOverdueTasks();
   const { categories: customCats } = useCustomCategories();
   const [editTask, setEditTask] = useState<DbTask | null>(null);
 
@@ -177,40 +195,75 @@ export function TimelinePlanner() {
         </p>
       </div>
 
-      {loading ? (
-        <p className="text-muted-foreground text-sm">Carregando tarefas...</p>
-      ) : tasks.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-muted-foreground text-sm">Nenhuma tarefa para hoje.</p>
-          <p className="text-xs text-muted-foreground mt-1">Clique no + para criar uma nova tarefa.</p>
-        </div>
-      ) : (
-        <div className="relative">
-          <div className="absolute left-7 lg:left-8 top-0 bottom-0 w-0.5 bg-inactive z-0" />
-          <motion.div
-            className="absolute left-7 lg:left-8 top-0 w-0.5 z-0"
-            style={{
-              background: "linear-gradient(to bottom, hsl(330 100% 50%), hsl(22 100% 50%), hsl(186 100% 50%))",
-            }}
-            initial={{ height: "0%" }}
-            animate={{ height: `${progressPercent}%` }}
-            transition={{ duration: 1.5, ease: "easeOut" }}
-          />
-          <div className="relative z-10 flex flex-col gap-8 lg:gap-10">
-            {tasks.map((task, i) => (
-              <TimelineNode
-                key={task.id}
-                task={task}
-                status={getNodeStatus(task, currentTime)}
-                index={i}
-                onToggle={() => toggleComplete(task.id, !task.completed)}
-                onClick={() => setEditTask(task)}
-                customCats={customCats}
+      <div className="flex gap-6">
+        {/* Left column - 70% - Today's timeline */}
+        <div className="flex-[7] min-w-0">
+          {loading ? (
+            <p className="text-muted-foreground text-sm">Carregando tarefas...</p>
+          ) : tasks.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground text-sm">Nenhuma tarefa para hoje.</p>
+              <p className="text-xs text-muted-foreground mt-1">Clique no + para criar uma nova tarefa.</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-7 lg:left-8 top-0 bottom-0 w-0.5 bg-inactive z-0" />
+              <motion.div
+                className="absolute left-7 lg:left-8 top-0 w-0.5 z-0"
+                style={{
+                  background: "linear-gradient(to bottom, hsl(330 100% 50%), hsl(22 100% 50%), hsl(186 100% 50%))",
+                }}
+                initial={{ height: "0%" }}
+                animate={{ height: `${progressPercent}%` }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
               />
-            ))}
-          </div>
+              <div className="relative z-10 flex flex-col gap-8 lg:gap-10">
+                {tasks.map((task, i) => (
+                  <TimelineNode
+                    key={task.id}
+                    task={task}
+                    status={getNodeStatus(task, currentTime)}
+                    index={i}
+                    onToggle={() => toggleComplete(task.id, !task.completed)}
+                    onClick={() => setEditTask(task)}
+                    customCats={customCats}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Right column - 30% - Overdue */}
+        <div className="hidden lg:block flex-[3] min-w-0">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            <h3 className="text-sm font-display font-semibold text-foreground">Pendências</h3>
+            {overdueTasks.length > 0 && (
+              <span className="text-[10px] bg-destructive/20 text-destructive px-2 py-0.5 rounded-full font-medium">
+                {overdueTasks.length}
+              </span>
+            )}
+          </div>
+          {overdueTasks.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-xs text-muted-foreground">Nenhuma pendência! 🎉</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+              {overdueTasks.map(task => (
+                <OverdueCard
+                  key={task.id}
+                  task={task}
+                  customCats={customCats}
+                  onToggle={() => toggleComplete(task.id, true)}
+                  onClick={() => setEditTask(task)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <TaskDrawer
         onSubmit={addTask}

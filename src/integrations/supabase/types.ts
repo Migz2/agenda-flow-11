@@ -59,8 +59,36 @@ export type Database = {
         }
         Relationships: []
       }
+      study_generations: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          label: string
+          task_count: number
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          label: string
+          task_count?: number
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          task_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
+          batch_id: string | null
           category: string
           completed: boolean
           created_at: string
@@ -78,6 +106,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          batch_id?: string | null
           category?: string
           completed?: boolean
           created_at?: string
@@ -95,6 +124,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          batch_id?: string | null
           category?: string
           completed?: boolean
           created_at?: string

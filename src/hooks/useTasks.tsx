@@ -18,6 +18,7 @@ export interface DbTask {
   created_at: string;
   updated_at: string;
   custom_category_id: string | null;
+  batch_id: string | null;
 }
 
 export interface NewTask {
@@ -31,6 +32,7 @@ export interface NewTask {
   icon?: string;
   location?: string;
   custom_category_id?: string | null;
+  batch_id?: string | null;
 }
 
 export interface CustomCategory {
@@ -38,6 +40,15 @@ export interface CustomCategory {
   user_id: string;
   name: string;
   color: string;
+  created_at: string;
+}
+
+export interface StudyGeneration {
+  id: string;
+  user_id: string;
+  batch_id: string;
+  label: string;
+  task_count: number;
   created_at: string;
 }
 
@@ -85,6 +96,7 @@ export function useTasks(dateFilter?: string) {
       icon: task.icon || "briefcase",
       location: task.location || "",
       custom_category_id: task.custom_category_id || null,
+      batch_id: task.batch_id || null,
     } as any);
     if (!error) await fetchTasks();
     return error;
@@ -104,6 +116,7 @@ export function useTasks(dateFilter?: string) {
       icon: task.icon || "book",
       location: task.location || "",
       custom_category_id: task.custom_category_id || null,
+      batch_id: task.batch_id || null,
     }));
     const { error } = await supabase.from("tasks").insert(rows as any);
     if (!error) await fetchTasks();
@@ -132,19 +145,28 @@ export function useTasks(dateFilter?: string) {
   };
 
   const toggleComplete = async (taskId: string, completed: boolean) => {
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed } : t));
     const { error } = await supabase
       .from("tasks")
       .update({ completed, updated_at: new Date().toISOString() } as any)
       .eq("id", taskId);
-    if (!error) await fetchTasks();
+    if (error) await fetchTasks(); // revert on error
   };
 
   const deleteTask = async (taskId: string) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
     const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-    if (!error) await fetchTasks();
+    if (error) await fetchTasks();
   };
 
-  return { tasks, loading, addTask, addTasksBatch, updateTask, toggleComplete, deleteTask, refetch: fetchTasks };
+  const deleteBatch = async (batchId: string) => {
+    setTasks(prev => prev.filter(t => t.batch_id !== batchId));
+    const { error } = await supabase.from("tasks").delete().eq("batch_id", batchId);
+    if (error) await fetchTasks();
+  };
+
+  return { tasks, loading, addTask, addTasksBatch, updateTask, toggleComplete, deleteTask, deleteBatch, refetch: fetchTasks };
 }
 
 export function useAllTasks() {
@@ -160,23 +182,31 @@ export function useOverdueTasks() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<DbTask[]>([]);
 
-  useEffect(() => {
+  const fetchOverdue = useCallback(async () => {
     if (!user) return;
-    const fetch = async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("completed", false)
-        .lt("start_time", `${today}T00:00:00`)
-        .order("start_time", { ascending: false });
-      if (data) setTasks(data as unknown as DbTask[]);
-    };
-    fetch();
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("completed", false)
+      .lt("start_time", `${today}T00:00:00`)
+      .order("start_time", { ascending: false });
+    if (data) setTasks(data as unknown as DbTask[]);
   }, [user]);
 
-  return tasks;
+  useEffect(() => { fetchOverdue(); }, [fetchOverdue]);
+
+  const toggleComplete = async (taskId: string) => {
+    // Optimistic: remove from list immediately
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    await supabase
+      .from("tasks")
+      .update({ completed: true, updated_at: new Date().toISOString() } as any)
+      .eq("id", taskId);
+  };
+
+  return { tasks, toggleComplete, refetch: fetchOverdue };
 }
 
 export function useCompletedTasksHistory() {
@@ -231,4 +261,42 @@ export function useCustomCategories() {
   };
 
   return { categories, addCategory, refetch: fetchCategories };
+}
+
+export function useStudyGenerations() {
+  const { user } = useAuth();
+  const [generations, setGenerations] = useState<StudyGeneration[]>([]);
+
+  const fetchGenerations = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("study_generations")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (data) setGenerations(data as unknown as StudyGeneration[]);
+  }, [user]);
+
+  useEffect(() => { fetchGenerations(); }, [fetchGenerations]);
+
+  const addGeneration = async (batchId: string, label: string, taskCount: number) => {
+    if (!user) return;
+    await supabase.from("study_generations").insert({
+      user_id: user.id,
+      batch_id: batchId,
+      label,
+      task_count: taskCount,
+    } as any);
+    await fetchGenerations();
+  };
+
+  const deleteGeneration = async (id: string, batchId: string) => {
+    // Delete all tasks with this batch_id
+    await supabase.from("tasks").delete().eq("batch_id", batchId).eq("user_id", user!.id);
+    // Delete the generation record
+    await supabase.from("study_generations").delete().eq("id", id);
+    setGenerations(prev => prev.filter(g => g.id !== id));
+  };
+
+  return { generations, addGeneration, deleteGeneration, refetch: fetchGenerations };
 }

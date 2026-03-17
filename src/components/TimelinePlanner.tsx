@@ -18,6 +18,16 @@ function getNodeStatus(task: DbTask, nowMinutes: number): NodeStatus {
   return "future";
 }
 
+function getActivePercent(task: DbTask, nowMinutes: number): number {
+  const st = new Date(task.start_time);
+  const et = new Date(task.end_time);
+  const startMin = st.getHours() * 60 + st.getMinutes();
+  const endMin = et.getHours() * 60 + et.getMinutes();
+  const range = endMin - startMin;
+  if (range <= 0) return 0;
+  return Math.min(100, Math.max(0, ((nowMinutes - startMin) / range) * 100));
+}
+
 function formatTimeFromDate(d: Date): string {
   const h = d.getHours();
   const m = d.getMinutes();
@@ -44,8 +54,8 @@ function getCatInfo(task: DbTask, customCats: any[]) {
   return { label: task.category || "Geral", color: "#666" };
 }
 
-function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
-  task: DbTask; status: NodeStatus; index: number; onToggle: () => void; onClick: () => void; customCats: any[];
+function TimelineNode({ task, status, index, onToggle, onClick, customCats, fillPercent }: {
+  task: DbTask; status: NodeStatus; index: number; onToggle: () => void; onClick: () => void; customCats: any[]; fillPercent: number;
 }) {
   const catInfo = getCatInfo(task, customCats);
   const IconComp = iconMap[task.icon];
@@ -67,7 +77,6 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
       <div className="relative z-10 shrink-0">
         <div
           className={`w-14 h-14 lg:w-16 lg:h-16 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer
-            ${isActive ? "animate-pulse-glow" : ""}
             ${isPast ? "opacity-50" : ""}
             ${isFuture ? "bg-inactive" : ""}
           `}
@@ -82,34 +91,84 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats }: {
         </div>
       </div>
 
-      <div className={`pt-1 flex-1 min-w-0 cursor-pointer ${isPast && !isCompleted ? "opacity-60" : ""}`} onClick={onClick}>
-        <p className="text-xs text-muted-foreground font-body">
-          {formatTimeFromDate(st)} - {formatTimeFromDate(et)} ({formatDurationMinutes(task.start_time, task.end_time)})
-        </p>
-        <h3
-          className={`text-base lg:text-lg font-display font-semibold mt-0.5
-            ${isCompleted ? "line-through text-muted-foreground" : ""}
-            ${isActive ? "text-foreground" : ""}
-            ${isPast ? "text-muted-foreground" : ""}
-            ${isFuture ? "text-foreground" : ""}
-          `}
-          style={isActive ? { color: catColor } : undefined}
-        >
-          {task.title}
-        </h3>
-        {task.location && (
-          <p className={`text-xs mt-1 ${isFuture ? "text-muted-foreground/60" : "text-muted-foreground"}`}>📍 {task.location}</p>
-        )}
-        <div className="mt-1.5">
-          <span
-            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+      <div
+        className={`pt-1 flex-1 min-w-0 cursor-pointer relative overflow-hidden rounded-xl ${isActive ? "px-4 py-3 border border-border/30" : ""} ${isPast && !isCompleted ? "opacity-60" : ""}`}
+        onClick={onClick}
+      >
+        {/* Water-fill effect for active task */}
+        {isActive && (
+          <motion.div
+            className="absolute inset-0 rounded-xl pointer-events-none"
             style={{
-              backgroundColor: isFuture ? "hsl(0 0% 16%)" : `${catColor}26`,
-              color: isFuture ? "hsl(0 0% 45%)" : catColor,
+              background: `linear-gradient(to top, ${catColor}30, ${catColor}10)`,
             }}
+            initial={{ height: "0%" }}
+            animate={{ height: `${fillPercent}%` }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            // Position from bottom
+            layout
           >
-            {catInfo.label}
-          </span>
+            <div
+              className="absolute bottom-0 left-0 right-0 rounded-xl"
+              style={{
+                height: `${fillPercent}%`,
+                background: `linear-gradient(to top, ${catColor}35, ${catColor}10)`,
+              }}
+            />
+          </motion.div>
+        )}
+        {isActive && (
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-b-xl transition-all duration-1000 ease-out"
+            style={{
+              height: `${fillPercent}%`,
+              background: `linear-gradient(to top, ${catColor}30, ${catColor}08)`,
+            }}
+          />
+        )}
+
+        <div className="relative z-10">
+          <p className="text-xs text-muted-foreground font-body">
+            {formatTimeFromDate(st)} - {formatTimeFromDate(et)} ({formatDurationMinutes(task.start_time, task.end_time)})
+          </p>
+          <h3
+            className={`text-base lg:text-lg font-display font-semibold mt-0.5
+              ${isCompleted ? "line-through text-muted-foreground" : ""}
+              ${isActive ? "text-foreground" : ""}
+              ${isPast ? "text-muted-foreground" : ""}
+              ${isFuture ? "text-foreground" : ""}
+            `}
+            style={isActive ? { color: catColor } : undefined}
+          >
+            {task.title}
+          </h3>
+          {isActive && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${fillPercent}%`, backgroundColor: catColor }}
+                />
+              </div>
+              <span className="text-[10px] font-medium" style={{ color: catColor }}>
+                {Math.round(fillPercent)}%
+              </span>
+            </div>
+          )}
+          {task.location && (
+            <p className={`text-xs mt-1 ${isFuture ? "text-muted-foreground/60" : "text-muted-foreground"}`}>📍 {task.location}</p>
+          )}
+          <div className="mt-1.5">
+            <span
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: isFuture ? "hsl(0 0% 16%)" : `${catColor}26`,
+                color: isFuture ? "hsl(0 0% 45%)" : catColor,
+              }}
+            >
+              {catInfo.label}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -161,7 +220,7 @@ export function TimelinePlanner() {
     return now.getHours() * 60 + now.getMinutes();
   });
   const { tasks, loading, addTask, updateTask, toggleComplete } = useTodayTasks();
-  const overdueTasks = useOverdueTasks();
+  const { tasks: overdueTasks, toggleComplete: toggleOverdue } = useOverdueTasks();
   const { categories: customCats } = useCustomCategories();
   const [editTask, setEditTask] = useState<DbTask | null>(null);
 
@@ -169,7 +228,7 @@ export function TimelinePlanner() {
     const interval = setInterval(() => {
       const now = new Date();
       setCurrentTime(now.getHours() * 60 + now.getMinutes());
-    }, 30000);
+    }, 60000); // update every minute for water-fill
     return () => clearInterval(interval);
   }, []);
 
@@ -218,17 +277,21 @@ export function TimelinePlanner() {
                 transition={{ duration: 1.5, ease: "easeOut" }}
               />
               <div className="relative z-10 flex flex-col gap-8 lg:gap-10">
-                {tasks.map((task, i) => (
-                  <TimelineNode
-                    key={task.id}
-                    task={task}
-                    status={getNodeStatus(task, currentTime)}
-                    index={i}
-                    onToggle={() => toggleComplete(task.id, !task.completed)}
-                    onClick={() => setEditTask(task)}
-                    customCats={customCats}
-                  />
-                ))}
+                {tasks.map((task, i) => {
+                  const status = getNodeStatus(task, currentTime);
+                  return (
+                    <TimelineNode
+                      key={task.id}
+                      task={task}
+                      status={status}
+                      index={i}
+                      onToggle={() => toggleComplete(task.id, !task.completed)}
+                      onClick={() => setEditTask(task)}
+                      customCats={customCats}
+                      fillPercent={status === "active" ? getActivePercent(task, currentTime) : 0}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -256,7 +319,7 @@ export function TimelinePlanner() {
                   key={task.id}
                   task={task}
                   customCats={customCats}
-                  onToggle={() => toggleComplete(task.id, true)}
+                  onToggle={() => toggleOverdue(task.id)}
                   onClick={() => setEditTask(task)}
                 />
               ))}

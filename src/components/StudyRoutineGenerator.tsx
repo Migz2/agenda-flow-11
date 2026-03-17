@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, GraduationCap, Sparkles, BookOpen } from "lucide-react";
+import { Plus, Trash2, GraduationCap, Sparkles, BookOpen, History, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useAllTasks, useCustomCategories, type NewTask } from "@/hooks/useTasks";
+import { useAllTasks, useCustomCategories, useStudyGenerations, type NewTask } from "@/hooks/useTasks";
 import { toast } from "@/hooks/use-toast";
 
 const WEEK_DAYS = [
@@ -62,27 +61,25 @@ function setTime(date: Date, hours: number, minutes: number): Date {
 function generateStudyTasks(
   subjects: Subject[],
   weeksAhead: number,
-  categoryMap: Record<string, string> // subjectName -> customCategoryId
+  categoryMap: Record<string, string>,
+  batchId: string
 ): NewTask[] {
   const tasks: NewTask[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Find the start of this week (Monday)
   const startOfWeek = new Date(today);
   const dayOfWeek = startOfWeek.getDay();
   const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   startOfWeek.setDate(startOfWeek.getDate() + diff);
 
-  // Track used time slots per day to avoid overlaps
-  const daySlots: Record<string, number> = {}; // dateStr -> next available hour
+  const daySlots: Record<string, number> = {};
 
   function getNextSlot(date: Date, durationMin: number): { start: Date; end: Date } {
     const dateStr = date.toISOString().slice(0, 10);
-    const startHour = daySlots[dateStr] || 8; // Start from 8 AM
+    const startHour = daySlots[dateStr] || 8;
     const startDate = setTime(date, Math.floor(startHour), Math.round((startHour % 1) * 60));
     const endDate = new Date(startDate.getTime() + durationMin * 60000);
-    // Add 15 min gap
     daySlots[dateStr] = startHour + (durationMin + 15) / 60;
     return { start: startDate, end: endDate };
   }
@@ -95,11 +92,8 @@ function generateStudyTasks(
 
       for (const classDay of subject.days) {
         const classDate = addDays(weekStart, classDay === 0 ? 6 : classDay - 1);
-        
-        // Skip past dates
         if (classDate < today) continue;
 
-        // === Rule: Preparation (if hard) - 1-2 days before ===
         if (subject.difficulty === "hard") {
           const prepDate = addDays(classDate, -1);
           if (prepDate >= today) {
@@ -112,11 +106,11 @@ function generateStudyTasks(
               category: subject.name.toLowerCase(),
               icon: "brain",
               custom_category_id: catId,
+              batch_id: batchId,
             });
           }
         }
 
-        // === Rule: Class Day Study (45-60 min blocks) ===
         const block1 = getNextSlot(classDate, 50);
         tasks.push({
           title: `Estudo Forte: ${subject.name}`,
@@ -126,6 +120,7 @@ function generateStudyTasks(
           category: subject.name.toLowerCase(),
           icon: "book",
           custom_category_id: catId,
+          batch_id: batchId,
         });
 
         if (subject.difficulty === "hard") {
@@ -138,11 +133,10 @@ function generateStudyTasks(
             category: subject.name.toLowerCase(),
             icon: "book",
             custom_category_id: catId,
+            batch_id: batchId,
           });
         }
 
-        // === Rule: Spaced Repetition ===
-        // Review 1: next day, 10 min
         const rev1Date = addDays(classDate, 1);
         if (rev1Date >= today) {
           const slot = getNextSlot(rev1Date, 10);
@@ -154,10 +148,10 @@ function generateStudyTasks(
             category: subject.name.toLowerCase(),
             icon: "brain",
             custom_category_id: catId,
+            batch_id: batchId,
           });
         }
 
-        // Review 2: 3 days later, 10 min
         const rev2Date = addDays(classDate, 3);
         if (rev2Date >= today) {
           const slot = getNextSlot(rev2Date, 10);
@@ -169,10 +163,10 @@ function generateStudyTasks(
             category: subject.name.toLowerCase(),
             icon: "brain",
             custom_category_id: catId,
+            batch_id: batchId,
           });
         }
 
-        // Review 3: 7 days later, 15 min
         const rev3Date = addDays(classDate, 7);
         if (rev3Date >= today) {
           const slot = getNextSlot(rev3Date, 15);
@@ -184,32 +178,34 @@ function generateStudyTasks(
             category: subject.name.toLowerCase(),
             icon: "brain",
             custom_category_id: catId,
+            batch_id: batchId,
           });
         }
       }
     }
 
-    // === Rule: Weekly Practice & Recovery (Saturday) ===
     const saturday = addDays(weekStart, 5);
     if (saturday >= today) {
       const recSlot = getNextSlot(saturday, 40);
       tasks.push({
         title: "Recuperação Ativa Geral",
-        description: "Revisão geral de todas as matérias da semana. Faça testes práticos e identifique pontos fracos.",
+        description: "Revisão geral de todas as matérias da semana.",
         start_time: recSlot.start.toISOString(),
         end_time: recSlot.end.toISOString(),
         category: "estudo",
         icon: "graduation",
+        batch_id: batchId,
       });
 
       const pracSlot = getNextSlot(saturday, 60);
       tasks.push({
         title: "Prática Semanal / Projeto",
-        description: "Dedique tempo a projetos práticos ou exercícios integradores das matérias da semana.",
+        description: "Projetos práticos ou exercícios integradores.",
         start_time: pracSlot.start.toISOString(),
         end_time: pracSlot.end.toISOString(),
         category: "estudo",
         icon: "code",
+        batch_id: batchId,
       });
     }
   }
@@ -220,10 +216,11 @@ function generateStudyTasks(
 export function StudyRoutineGenerator() {
   const { addTasksBatch } = useAllTasks();
   const { addCategory } = useCustomCategories();
+  const { generations, addGeneration, deleteGeneration } = useStudyGenerations();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [weeksAhead, setWeeksAhead] = useState(4);
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const addSubject = () => {
     setSubjects([...subjects, {
@@ -261,26 +258,33 @@ export function StudyRoutineGenerator() {
     }
 
     setGenerating(true);
+    const batchId = crypto.randomUUID();
 
-    // Create custom categories for each subject
     const categoryMap: Record<string, string> = {};
     for (const sub of valid) {
       const cat = await addCategory(sub.name, sub.color);
       if (cat) categoryMap[sub.name] = cat.id;
     }
 
-    // Generate tasks
-    const tasks = generateStudyTasks(valid, weeksAhead, categoryMap);
-
-    // Batch insert
+    const tasks = generateStudyTasks(valid, weeksAhead, categoryMap, batchId);
     const error = await addTasksBatch(tasks);
+
     if (error) {
       toast({ title: "Erro ao gerar", description: "Não foi possível criar as tarefas.", variant: "destructive" });
     } else {
+      const label = `${valid.map(s => s.name).join(", ")} · ${weeksAhead} sem.`;
+      await addGeneration(batchId, label, tasks.length);
       toast({ title: "Rotina gerada! 🎓", description: `${tasks.length} tarefas criadas para ${weeksAhead} semanas.` });
-      setGenerated(true);
+      setSubjects([]);
     }
     setGenerating(false);
+  };
+
+  const handleDeleteGeneration = async (id: string, batchId: string) => {
+    setDeleting(id);
+    await deleteGeneration(id, batchId);
+    toast({ title: "Rotina apagada", description: "Todas as tarefas do lote foram removidas." });
+    setDeleting(null);
   };
 
   return (
@@ -296,188 +300,214 @@ export function StudyRoutineGenerator() {
         </p>
       </div>
 
-      {generated ? (
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16">
-          <Sparkles className="w-16 h-16 text-primary mx-auto mb-4" />
-          <h3 className="text-xl font-display font-bold text-foreground mb-2">Rotina gerada com sucesso!</h3>
-          <p className="text-sm text-muted-foreground mb-6">Confira suas tarefas no Planner, Calendar e Tasks.</p>
-          <Button onClick={() => { setGenerated(false); setSubjects([]); }} variant="outline" className="border-border/50">
-            Gerar outra rotina
-          </Button>
-        </motion.div>
-      ) : (
-        <>
-          {/* Subjects list */}
-          <div className="flex flex-col gap-4 mb-6">
-            <AnimatePresence>
-              {subjects.map((sub, idx) => (
-                <motion.div
-                  key={sub.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -100 }}
-                  className="bg-card rounded-2xl p-5 border border-border/30"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: sub.color }} />
-                      <span className="text-sm font-display font-semibold text-foreground">
-                        Matéria {idx + 1}
-                      </span>
-                    </div>
-                    <button onClick={() => removeSubject(sub.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Nome da Matéria *</Label>
-                      <Input
-                        value={sub.name}
-                        onChange={e => updateSubject(sub.id, { name: e.target.value })}
-                        placeholder="Ex: Cálculo II"
-                        className="bg-secondary border-border/50 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Cor</Label>
-                      <div className="flex gap-1.5 mt-2 flex-wrap">
-                        {PALETTE.map(c => (
-                          <button
-                            key={c}
-                            onClick={() => updateSubject(sub.id, { color: c })}
-                            className={`w-5 h-5 rounded-full border-2 transition-all ${sub.color === c ? "border-foreground scale-110" : "border-transparent"}`}
-                            style={{ backgroundColor: c }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <Label className="text-xs text-muted-foreground">Dias da Aula *</Label>
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {WEEK_DAYS.map(day => (
-                        <button
-                          key={day.id}
-                          onClick={() => toggleDay(sub.id, day.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            sub.days.includes(day.id)
-                              ? "text-primary-foreground"
-                              : "bg-secondary text-muted-foreground hover:text-foreground"
-                          }`}
-                          style={sub.days.includes(day.id) ? { backgroundColor: sub.color } : undefined}
-                        >
-                          {day.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Dificuldade</Label>
-                      <Select value={sub.difficulty} onValueChange={v => updateSubject(sub.id, { difficulty: v as any })}>
-                        <SelectTrigger className="bg-secondary border-border/50 mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border/30">
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="hard">Difícil</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Tipo de Aprendizagem *</Label>
-                      <Select value={sub.learningType} onValueChange={v => updateSubject(sub.id, { learningType: v })}>
-                        <SelectTrigger className="bg-secondary border-border/50 mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border/30">
-                          {LEARNING_TYPES.map(lt => (
-                            <SelectItem key={lt.id} value={lt.id}>
-                              <div>
-                                <span className="font-medium">{lt.label}</span>
-                                <span className="text-muted-foreground text-xs ml-2">({lt.desc})</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+      {/* Generation History */}
+      {generations.length > 0 && (
+        <div className="mb-8 bg-card rounded-2xl p-5 border border-border/30">
+          <div className="flex items-center gap-2 mb-4">
+            <History className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-display font-semibold text-foreground">Histórico de Gerações</h3>
           </div>
+          <div className="flex flex-col gap-2">
+            {generations.map(gen => (
+              <div key={gen.id} className="flex items-center gap-3 bg-secondary/50 rounded-xl px-4 py-3 border border-border/20">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-display font-medium text-foreground truncate">{gen.label}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(gen.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {" · "}{gen.task_count} tarefas
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteGeneration(gen.id, gen.batch_id)}
+                  disabled={deleting === gen.id}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                >
+                  {deleting === gen.id ? (
+                    <span className="text-xs">Apagando...</span>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      <span className="text-xs">Apagar</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-          <button
-            onClick={addSubject}
-            className="w-full py-4 border-2 border-dashed border-border/40 rounded-2xl text-muted-foreground hover:text-foreground hover:border-border/80 transition-all flex items-center justify-center gap-2 mb-6"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="text-sm font-medium">Adicionar Matéria</span>
-          </button>
+      {/* Subjects list */}
+      <div className="flex flex-col gap-4 mb-6">
+        <AnimatePresence>
+          {subjects.map((sub, idx) => (
+            <motion.div
+              key={sub.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -100 }}
+              className="bg-card rounded-2xl p-5 border border-border/30"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: sub.color }} />
+                  <span className="text-sm font-display font-semibold text-foreground">
+                    Matéria {idx + 1}
+                  </span>
+                </div>
+                <button onClick={() => removeSubject(sub.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
 
-          {subjects.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-2xl p-5 border border-border/30 mb-6">
-              <Label className="text-xs text-muted-foreground">Gerar para quantas semanas?</Label>
-              <div className="flex items-center gap-4 mt-2">
-                {[2, 4, 8, 12, 16].map(w => (
-                  <button
-                    key={w}
-                    onClick={() => setWeeksAhead(w)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      weeksAhead === w
-                        ? "bg-primary text-primary-foreground glow-pink"
-                        : "bg-secondary text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {w} sem.
-                  </button>
-                ))}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Nome da Matéria *</Label>
+                  <Input
+                    value={sub.name}
+                    onChange={e => updateSubject(sub.id, { name: e.target.value })}
+                    placeholder="Ex: Cálculo II"
+                    className="bg-secondary border-border/50 mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Cor</Label>
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {PALETTE.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => updateSubject(sub.id, { color: c })}
+                        className={`w-5 h-5 rounded-full border-2 transition-all ${sub.color === c ? "border-foreground scale-110" : "border-transparent"}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <Label className="text-xs text-muted-foreground">Dias da Aula *</Label>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {WEEK_DAYS.map(day => (
+                    <button
+                      key={day.id}
+                      onClick={() => toggleDay(sub.id, day.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        sub.days.includes(day.id)
+                          ? "text-primary-foreground"
+                          : "bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                      style={sub.days.includes(day.id) ? { backgroundColor: sub.color } : undefined}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Dificuldade</Label>
+                  <Select value={sub.difficulty} onValueChange={v => updateSubject(sub.id, { difficulty: v as any })}>
+                    <SelectTrigger className="bg-secondary border-border/50 mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border/30">
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="hard">Difícil</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Tipo de Aprendizagem *</Label>
+                  <Select value={sub.learningType} onValueChange={v => updateSubject(sub.id, { learningType: v })}>
+                    <SelectTrigger className="bg-secondary border-border/50 mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border/30">
+                      {LEARNING_TYPES.map(lt => (
+                        <SelectItem key={lt.id} value={lt.id}>
+                          <div>
+                            <span className="font-medium">{lt.label}</span>
+                            <span className="text-muted-foreground text-xs ml-2">({lt.desc})</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </motion.div>
-          )}
+          ))}
+        </AnimatePresence>
+      </div>
 
-          {subjects.length > 0 && (
-            <Button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink py-6 text-base font-display font-semibold"
-            >
-              {generating ? (
-                "Gerando rotina..."
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Gerar Rotina de Estudos
-                </>
-              )}
-            </Button>
-          )}
+      <button
+        onClick={addSubject}
+        className="w-full py-4 border-2 border-dashed border-border/40 rounded-2xl text-muted-foreground hover:text-foreground hover:border-border/80 transition-all flex items-center justify-center gap-2 mb-6"
+      >
+        <Plus className="w-5 h-5" />
+        <span className="text-sm font-medium">Adicionar Matéria</span>
+      </button>
 
-          {/* Info cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-8">
-            <div className="bg-card rounded-2xl p-4 border border-border/30">
-              <BookOpen className="w-6 h-6 text-primary mb-2" />
-              <h4 className="text-sm font-display font-semibold text-foreground">Revisão Espaçada</h4>
-              <p className="text-xs text-muted-foreground mt-1">3 revisões automáticas: 1 dia, 3 dias e 7 dias após cada aula.</p>
-            </div>
-            <div className="bg-card rounded-2xl p-4 border border-border/30">
-              <GraduationCap className="w-6 h-6 text-primary mb-2" />
-              <h4 className="text-sm font-display font-semibold text-foreground">Preparação</h4>
-              <p className="text-xs text-muted-foreground mt-1">Matérias difíceis recebem bloco de preparação 1 dia antes.</p>
-            </div>
-            <div className="bg-card rounded-2xl p-4 border border-border/30">
-              <Sparkles className="w-6 h-6 text-primary mb-2" />
-              <h4 className="text-sm font-display font-semibold text-foreground">Prática Semanal</h4>
-              <p className="text-xs text-muted-foreground mt-1">Recuperação ativa + projeto prático todo sábado.</p>
-            </div>
+      {subjects.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-2xl p-5 border border-border/30 mb-6">
+          <Label className="text-xs text-muted-foreground">Gerar para quantas semanas?</Label>
+          <div className="flex items-center gap-4 mt-2">
+            {[2, 4, 8, 12, 16].map(w => (
+              <button
+                key={w}
+                onClick={() => setWeeksAhead(w)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  weeksAhead === w
+                    ? "bg-primary text-primary-foreground glow-pink"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {w} sem.
+              </button>
+            ))}
           </div>
-        </>
+        </motion.div>
       )}
+
+      {subjects.length > 0 && (
+        <Button
+          onClick={handleGenerate}
+          disabled={generating}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink py-6 text-base font-display font-semibold"
+        >
+          {generating ? (
+            "Gerando rotina..."
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 mr-2" />
+              Gerar Rotina de Estudos
+            </>
+          )}
+        </Button>
+      )}
+
+      {/* Info cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-8">
+        <div className="bg-card rounded-2xl p-4 border border-border/30">
+          <BookOpen className="w-6 h-6 text-primary mb-2" />
+          <h4 className="text-sm font-display font-semibold text-foreground">Revisão Espaçada</h4>
+          <p className="text-xs text-muted-foreground mt-1">3 revisões automáticas: 1 dia, 3 dias e 7 dias após cada aula.</p>
+        </div>
+        <div className="bg-card rounded-2xl p-4 border border-border/30">
+          <GraduationCap className="w-6 h-6 text-primary mb-2" />
+          <h4 className="text-sm font-display font-semibold text-foreground">Preparação</h4>
+          <p className="text-xs text-muted-foreground mt-1">Matérias difíceis recebem bloco de preparação 1 dia antes.</p>
+        </div>
+        <div className="bg-card rounded-2xl p-4 border border-border/30">
+          <Sparkles className="w-6 h-6 text-primary mb-2" />
+          <h4 className="text-sm font-display font-semibold text-foreground">Prática Semanal</h4>
+          <p className="text-xs text-muted-foreground mt-1">Recuperação ativa + projeto prático todo sábado.</p>
+        </div>
+      </div>
     </div>
   );
 }

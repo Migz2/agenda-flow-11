@@ -288,7 +288,7 @@ export function TimelinePlanner() {
                       status={status}
                       index={i}
                       onToggle={() => toggleComplete(task.id, !task.completed)}
-                      onClick={() => setEditTask(task)}
+                      onClick={() => setViewTask(task)}
                       customCats={customCats}
                       fillPercent={status === "active" ? getActivePercent(task, currentTime) : 0}
                     />

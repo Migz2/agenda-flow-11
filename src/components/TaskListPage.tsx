@@ -4,6 +4,7 @@ import { Check, Trash2, Filter } from "lucide-react";
 import { iconMap } from "@/lib/taskData";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
+import { TaskDetailModal } from "./TaskDetailModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function getDayLabel(dateStr: string): string {

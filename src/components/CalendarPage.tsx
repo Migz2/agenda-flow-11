@@ -36,6 +36,7 @@ const MAX_VISIBLE_TASKS = 3;
 export function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [viewTask, setViewTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
   const { tasks, addTask, updateTask } = useAllTasks();
   const { categories: customCats } = useCustomCategories();

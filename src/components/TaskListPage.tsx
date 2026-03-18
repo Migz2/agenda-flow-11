@@ -158,7 +158,7 @@ export function TaskListPage() {
                       animate={{ opacity: 0.6 }}
                       transition={{ delay: i * 0.03 }}
                       className="flex items-center gap-4 bg-card/50 rounded-xl px-4 py-3 border border-border/20 cursor-pointer"
-                      onClick={() => setEditTask(task)}
+                      onClick={() => setViewTask(task)}
                     >
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, false); }}

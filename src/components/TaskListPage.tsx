@@ -34,6 +34,7 @@ function groupTasksByDay(tasks: DbTask[]): Record<string, DbTask[]> {
 export function TaskListPage() {
   const { tasks, loading, addTask, updateTask, toggleComplete, deleteTask } = useAllTasks();
   const { categories: customCats } = useCustomCategories();
+  const [viewTask, setViewTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("__all");
 

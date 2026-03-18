@@ -223,6 +223,7 @@ export function TimelinePlanner() {
   const { tasks, loading, addTask, updateTask, toggleComplete } = useTodayTasks();
   const { tasks: overdueTasks, toggleComplete: toggleOverdue } = useOverdueTasks();
   const { categories: customCats } = useCustomCategories();
+  const [viewTask, setViewTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
 
   useEffect(() => {

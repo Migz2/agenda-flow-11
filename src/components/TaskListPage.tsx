@@ -179,6 +179,12 @@ export function TaskListPage() {
         </>
       )}
 
+      <TaskDetailModal
+        task={viewTask}
+        onClose={() => setViewTask(null)}
+        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+        onToggleComplete={(id, completed) => toggleComplete(id, completed)}
+      />
       <TaskDrawer onSubmit={addTask} onUpdate={updateTask} editTask={editTask} onClose={() => setEditTask(null)} />
     </div>
   );

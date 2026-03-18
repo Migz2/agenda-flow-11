@@ -330,6 +330,12 @@ export function TimelinePlanner() {
         </div>
       </div>
 
+      <TaskDetailModal
+        task={viewTask}
+        onClose={() => setViewTask(null)}
+        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+        onToggleComplete={(id, completed) => toggleComplete(id, completed)}
+      />
       <TaskDrawer
         onSubmit={addTask}
         onUpdate={updateTask}

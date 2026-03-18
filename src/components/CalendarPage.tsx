@@ -188,6 +188,14 @@ export function CalendarPage() {
         )}
       </AnimatePresence>
 
+      <TaskDetailModal
+        task={viewTask}
+        onClose={() => setViewTask(null)}
+        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+        onToggleComplete={(id, completed) => {
+          supabase.from("tasks").update({ completed, updated_at: new Date().toISOString() } as any).eq("id", id);
+        }}
+      />
       <TaskDrawer
         onSubmit={addTask}
         onUpdate={updateTask}

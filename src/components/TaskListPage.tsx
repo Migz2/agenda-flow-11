@@ -4,6 +4,7 @@ import { Check, Trash2, Filter } from "lucide-react";
 import { iconMap } from "@/lib/taskData";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
+import { TaskDetailModal } from "./TaskDetailModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function getDayLabel(dateStr: string): string {
@@ -34,6 +35,7 @@ function groupTasksByDay(tasks: DbTask[]): Record<string, DbTask[]> {
 export function TaskListPage() {
   const { tasks, loading, addTask, updateTask, toggleComplete, deleteTask } = useAllTasks();
   const { categories: customCats } = useCustomCategories();
+  const [viewTask, setViewTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("__all");
 
@@ -113,7 +115,7 @@ export function TaskListPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
                       className="flex items-center gap-4 bg-card rounded-xl px-4 py-3 border border-border/30 cursor-pointer hover:border-border/60 transition-colors"
-                      onClick={() => setEditTask(task)}
+                      onClick={() => setViewTask(task)}
                     >
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, true); }}
@@ -156,7 +158,7 @@ export function TaskListPage() {
                       animate={{ opacity: 0.6 }}
                       transition={{ delay: i * 0.03 }}
                       className="flex items-center gap-4 bg-card/50 rounded-xl px-4 py-3 border border-border/20 cursor-pointer"
-                      onClick={() => setEditTask(task)}
+                      onClick={() => setViewTask(task)}
                     >
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, false); }}
@@ -178,6 +180,12 @@ export function TaskListPage() {
         </>
       )}
 
+      <TaskDetailModal
+        task={viewTask}
+        onClose={() => setViewTask(null)}
+        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+        onToggleComplete={(id, completed) => toggleComplete(id, completed)}
+      />
       <TaskDrawer onSubmit={addTask} onUpdate={updateTask} editTask={editTask} onClose={() => setEditTask(null)} />
     </div>
   );

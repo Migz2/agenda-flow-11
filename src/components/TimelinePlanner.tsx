@@ -4,6 +4,7 @@ import { iconMap } from "@/lib/taskData";
 import { useState, useEffect } from "react";
 import { useTodayTasks, useOverdueTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
+import { TaskDetailModal } from "./TaskDetailModal";
 
 type NodeStatus = "completed" | "active" | "future" | "past";
 
@@ -222,6 +223,7 @@ export function TimelinePlanner() {
   const { tasks, loading, addTask, updateTask, toggleComplete } = useTodayTasks();
   const { tasks: overdueTasks, toggleComplete: toggleOverdue } = useOverdueTasks();
   const { categories: customCats } = useCustomCategories();
+  const [viewTask, setViewTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
 
   useEffect(() => {
@@ -286,7 +288,7 @@ export function TimelinePlanner() {
                       status={status}
                       index={i}
                       onToggle={() => toggleComplete(task.id, !task.completed)}
-                      onClick={() => setEditTask(task)}
+                      onClick={() => setViewTask(task)}
                       customCats={customCats}
                       fillPercent={status === "active" ? getActivePercent(task, currentTime) : 0}
                     />
@@ -320,7 +322,7 @@ export function TimelinePlanner() {
                   task={task}
                   customCats={customCats}
                   onToggle={() => toggleOverdue(task.id)}
-                  onClick={() => setEditTask(task)}
+                  onClick={() => setViewTask(task)}
                 />
               ))}
             </div>
@@ -328,6 +330,12 @@ export function TimelinePlanner() {
         </div>
       </div>
 
+      <TaskDetailModal
+        task={viewTask}
+        onClose={() => setViewTask(null)}
+        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+        onToggleComplete={(id, completed) => toggleComplete(id, completed)}
+      />
       <TaskDrawer
         onSubmit={addTask}
         onUpdate={updateTask}

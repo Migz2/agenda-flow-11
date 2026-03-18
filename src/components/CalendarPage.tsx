@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
+import { TaskDetailModal } from "./TaskDetailModal";
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -34,6 +36,7 @@ const MAX_VISIBLE_TASKS = 3;
 export function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [viewTask, setViewTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
   const { tasks, addTask, updateTask } = useAllTasks();
   const { categories: customCats } = useCustomCategories();
@@ -113,7 +116,7 @@ export function CalendarPage() {
                   return (
                     <div
                       key={t.id}
-                      onClick={(e) => { e.stopPropagation(); setEditTask(t); }}
+                      onClick={(e) => { e.stopPropagation(); setViewTask(t); }}
                       className="flex items-center gap-1 text-[10px] lg:text-[11px] leading-tight truncate rounded px-1 py-0.5 hover:bg-secondary/60 transition-colors cursor-pointer"
                     >
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -166,7 +169,7 @@ export function CalendarPage() {
                     return (
                       <div
                         key={t.id}
-                        onClick={() => { setEditTask(t); setSelectedDate(null); }}
+                        onClick={() => { setViewTask(t); setSelectedDate(null); }}
                         className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
                       >
                         <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -187,6 +190,14 @@ export function CalendarPage() {
         )}
       </AnimatePresence>
 
+      <TaskDetailModal
+        task={viewTask}
+        onClose={() => setViewTask(null)}
+        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+        onToggleComplete={(id, completed) => {
+          supabase.from("tasks").update({ completed, updated_at: new Date().toISOString() } as any).eq("id", id);
+        }}
+      />
       <TaskDrawer
         onSubmit={addTask}
         onUpdate={updateTask}

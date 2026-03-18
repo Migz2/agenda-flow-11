@@ -167,7 +167,7 @@ export function CalendarPage() {
                     return (
                       <div
                         key={t.id}
-                        onClick={() => { setEditTask(t); setSelectedDate(null); }}
+                        onClick={() => { setViewTask(t); setSelectedDate(null); }}
                         className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
                       >
                         <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: color }} />

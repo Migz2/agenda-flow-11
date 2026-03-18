@@ -322,7 +322,7 @@ export function TimelinePlanner() {
                   task={task}
                   customCats={customCats}
                   onToggle={() => toggleOverdue(task.id)}
-                  onClick={() => setEditTask(task)}
+                  onClick={() => setViewTask(task)}
                 />
               ))}
             </div>

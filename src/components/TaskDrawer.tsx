@@ -156,7 +156,9 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Detalhes</Label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição opcional" className="bg-secondary border-border/50 mt-1 min-h-[60px]" />
+            <div className="mt-1">
+              <RichTextEditor value={description} onChange={setDescription} placeholder="Descrição opcional" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

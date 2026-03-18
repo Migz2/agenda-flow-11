@@ -4,6 +4,7 @@ import { iconMap } from "@/lib/taskData";
 import { useState, useEffect } from "react";
 import { useTodayTasks, useOverdueTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
+import { TaskDetailModal } from "./TaskDetailModal";
 
 type NodeStatus = "completed" | "active" | "future" | "past";
 

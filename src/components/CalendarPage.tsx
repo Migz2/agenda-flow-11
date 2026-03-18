@@ -114,7 +114,7 @@ export function CalendarPage() {
                   return (
                     <div
                       key={t.id}
-                      onClick={(e) => { e.stopPropagation(); setEditTask(t); }}
+                      onClick={(e) => { e.stopPropagation(); setViewTask(t); }}
                       className="flex items-center gap-1 text-[10px] lg:text-[11px] leading-tight truncate rounded px-1 py-0.5 hover:bg-secondary/60 transition-colors cursor-pointer"
                     >
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />

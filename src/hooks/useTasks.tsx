@@ -19,6 +19,7 @@ export interface DbTask {
   updated_at: string;
   custom_category_id: string | null;
   batch_id: string | null;
+  hidden_from_planner: boolean;
 }
 
 export interface NewTask {

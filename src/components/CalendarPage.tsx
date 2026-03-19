@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
-import { TaskDetailModal } from "./TaskDetailModal";
+import { TaskContextMenu } from "./TaskContextMenu";
+import { NotesPanel } from "./NotesPanel";
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -36,8 +37,9 @@ const MAX_VISIBLE_TASKS = 3;
 export function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [viewTask, setViewTask] = useState<DbTask | null>(null);
+  const [notesTask, setNotesTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ task: DbTask; pos: { x: number; y: number } } | null>(null);
   const { tasks, addTask, updateTask } = useAllTasks();
   const { categories: customCats } = useCustomCategories();
   const year = currentDate.getFullYear();
@@ -66,6 +68,11 @@ export function CalendarPage() {
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const handleTaskClick = (task: DbTask, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setContextMenu({ task, pos: { x: e.clientX, y: e.clientY } });
+  };
 
   return (
     <div className="flex-1 p-4 lg:p-8 overflow-y-auto relative">
@@ -116,7 +123,7 @@ export function CalendarPage() {
                   return (
                     <div
                       key={t.id}
-                      onClick={(e) => { e.stopPropagation(); setViewTask(t); }}
+                      onClick={(e) => handleTaskClick(t, e)}
                       className="flex items-center gap-1 text-[10px] lg:text-[11px] leading-tight truncate rounded px-1 py-0.5 hover:bg-secondary/60 transition-colors cursor-pointer"
                     >
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -169,7 +176,7 @@ export function CalendarPage() {
                     return (
                       <div
                         key={t.id}
-                        onClick={() => { setViewTask(t); setSelectedDate(null); }}
+                        onClick={(e) => { handleTaskClick(t, e); setSelectedDate(null); }}
                         className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
                       >
                         <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -190,10 +197,17 @@ export function CalendarPage() {
         )}
       </AnimatePresence>
 
-      <TaskDetailModal
-        task={viewTask}
-        onClose={() => setViewTask(null)}
-        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+      <TaskContextMenu
+        task={contextMenu?.task || null}
+        position={contextMenu?.pos || null}
+        onClose={() => setContextMenu(null)}
+        onOpenNotes={(t) => setNotesTask(t)}
+        onEdit={(t) => setEditTask(t)}
+      />
+      <NotesPanel
+        task={notesTask}
+        onClose={() => setNotesTask(null)}
+        onEdit={(t) => { setNotesTask(null); setEditTask(t); }}
         onToggleComplete={(id, completed) => {
           supabase.from("tasks").update({ completed, updated_at: new Date().toISOString() } as any).eq("id", id);
         }}

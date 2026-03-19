@@ -176,7 +176,7 @@ export function useTasks(dateFilter?: string) {
     if (error) await fetchTasks();
   };
 
-  return { tasks, loading, addTask, addTasksBatch, updateTask, toggleComplete, deleteTask, deleteBatch, refetch: fetchTasks };
+  return { tasks, loading, addTask, addTasksBatch, updateTask, toggleComplete, deleteTask, deleteBatch, setHiddenFromPlanner, refetch: fetchTasks };
 }
 
 export function useAllTasks() {

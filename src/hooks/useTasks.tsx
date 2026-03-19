@@ -19,6 +19,7 @@ export interface DbTask {
   updated_at: string;
   custom_category_id: string | null;
   batch_id: string | null;
+  hidden_from_planner: boolean;
 }
 
 export interface NewTask {
@@ -160,13 +161,22 @@ export function useTasks(dateFilter?: string) {
     if (error) await fetchTasks();
   };
 
+  const setHiddenFromPlanner = async (taskId: string, hidden: boolean) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, hidden_from_planner: hidden } : t));
+    const { error } = await supabase
+      .from("tasks")
+      .update({ hidden_from_planner: hidden, updated_at: new Date().toISOString() } as any)
+      .eq("id", taskId);
+    if (error) await fetchTasks();
+  };
+
   const deleteBatch = async (batchId: string) => {
     setTasks(prev => prev.filter(t => t.batch_id !== batchId));
     const { error } = await supabase.from("tasks").delete().eq("batch_id", batchId);
     if (error) await fetchTasks();
   };
 
-  return { tasks, loading, addTask, addTasksBatch, updateTask, toggleComplete, deleteTask, deleteBatch, refetch: fetchTasks };
+  return { tasks, loading, addTask, addTasksBatch, updateTask, toggleComplete, deleteTask, deleteBatch, setHiddenFromPlanner, refetch: fetchTasks };
 }
 
 export function useAllTasks() {
@@ -181,6 +191,7 @@ export function useTodayTasks() {
 export function useOverdueTasks() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<DbTask[]>([]);
+  const [hiddenTasks, setHiddenTasks] = useState<DbTask[]>([]);
 
   const fetchOverdue = useCallback(async () => {
     if (!user) return;
@@ -192,13 +203,16 @@ export function useOverdueTasks() {
       .eq("completed", false)
       .lt("start_time", `${today}T00:00:00`)
       .order("start_time", { ascending: false });
-    if (data) setTasks(data as unknown as DbTask[]);
+    if (data) {
+      const all = data as unknown as DbTask[];
+      setTasks(all.filter(t => !t.hidden_from_planner));
+      setHiddenTasks(all.filter(t => t.hidden_from_planner));
+    }
   }, [user]);
 
   useEffect(() => { fetchOverdue(); }, [fetchOverdue]);
 
   const toggleComplete = async (taskId: string) => {
-    // Optimistic: remove from list immediately
     setTasks(prev => prev.filter(t => t.id !== taskId));
     await supabase
       .from("tasks")
@@ -206,7 +220,27 @@ export function useOverdueTasks() {
       .eq("id", taskId);
   };
 
-  return { tasks, toggleComplete, refetch: fetchOverdue };
+  const hideFromPlanner = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    if (task) setHiddenTasks(prev => [...prev, { ...task, hidden_from_planner: true }]);
+    await supabase
+      .from("tasks")
+      .update({ hidden_from_planner: true, updated_at: new Date().toISOString() } as any)
+      .eq("id", taskId);
+  };
+
+  const restoreToPlanner = async (taskId: string) => {
+    const task = hiddenTasks.find(t => t.id === taskId);
+    setHiddenTasks(prev => prev.filter(t => t.id !== taskId));
+    if (task) setTasks(prev => [...prev, { ...task, hidden_from_planner: false }]);
+    await supabase
+      .from("tasks")
+      .update({ hidden_from_planner: false, updated_at: new Date().toISOString() } as any)
+      .eq("id", taskId);
+  };
+
+  return { tasks, hiddenTasks, toggleComplete, hideFromPlanner, restoreToPlanner, refetch: fetchOverdue };
 }
 
 export function useCompletedTasksHistory() {

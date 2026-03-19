@@ -1,10 +1,13 @@
 import { motion } from "framer-motion";
-import { Check, AlertTriangle } from "lucide-react";
+import { Check, AlertTriangle, EyeOff, Plus, Eye } from "lucide-react";
 import { iconMap } from "@/lib/taskData";
 import { useState, useEffect } from "react";
 import { useTodayTasks, useOverdueTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
-import { TaskDetailModal } from "./TaskDetailModal";
+import { TaskContextMenu } from "./TaskContextMenu";
+import { NotesPanel } from "./NotesPanel";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 type NodeStatus = "completed" | "active" | "future" | "past";
 
@@ -56,7 +59,7 @@ function getCatInfo(task: DbTask, customCats: any[]) {
 }
 
 function TimelineNode({ task, status, index, onToggle, onClick, customCats, fillPercent }: {
-  task: DbTask; status: NodeStatus; index: number; onToggle: () => void; onClick: () => void; customCats: any[]; fillPercent: number;
+  task: DbTask; status: NodeStatus; index: number; onToggle: () => void; onClick: (e: React.MouseEvent) => void; customCats: any[]; fillPercent: number;
 }) {
   const catInfo = getCatInfo(task, customCats);
   const IconComp = iconMap[task.icon];
@@ -96,28 +99,6 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats, fill
         className={`pt-1 flex-1 min-w-0 cursor-pointer relative overflow-hidden rounded-xl ${isActive ? "px-4 py-3 border border-border/30" : ""} ${isPast && !isCompleted ? "opacity-60" : ""}`}
         onClick={onClick}
       >
-        {/* Water-fill effect for active task */}
-        {isActive && (
-          <motion.div
-            className="absolute inset-0 rounded-xl pointer-events-none"
-            style={{
-              background: `linear-gradient(to top, ${catColor}30, ${catColor}10)`,
-            }}
-            initial={{ height: "0%" }}
-            animate={{ height: `${fillPercent}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            // Position from bottom
-            layout
-          >
-            <div
-              className="absolute bottom-0 left-0 right-0 rounded-xl"
-              style={{
-                height: `${fillPercent}%`,
-                background: `linear-gradient(to top, ${catColor}35, ${catColor}10)`,
-              }}
-            />
-          </motion.div>
-        )}
         {isActive && (
           <div
             className="absolute bottom-0 left-0 right-0 rounded-b-xl transition-all duration-1000 ease-out"
@@ -188,18 +169,31 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats, fill
   );
 }
 
-function OverdueCard({ task, customCats, onToggle, onClick }: { task: DbTask; customCats: any[]; onToggle: () => void; onClick: () => void }) {
+function OverdueCard({ task, customCats, onToggle, onClick, onHide }: { task: DbTask; customCats: any[]; onToggle: () => void; onClick: (e: React.MouseEvent) => void; onHide: () => void }) {
   const catInfo = getCatInfo(task, customCats);
   const daysAgo = Math.floor((Date.now() - new Date(task.start_time).getTime()) / 86400000);
 
   return (
     <div
-      className="bg-card/60 rounded-xl p-3 border border-border/20 cursor-pointer hover:border-border/50 transition-colors"
+      className="bg-card/60 rounded-xl p-3 border border-border/20 cursor-pointer hover:border-border/50 transition-colors group"
       onClick={onClick}
     >
       <div className="flex items-center gap-2 mb-1">
         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catInfo.color }} />
-        <span className="text-xs text-muted-foreground truncate">{catInfo.label}</span>
+        <span className="text-xs text-muted-foreground truncate flex-1">{catInfo.label}</span>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => { e.stopPropagation(); onHide(); }}
+                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-all"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs">Ocultar do Planner</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       <p className="text-sm font-display font-semibold text-foreground truncate">{task.title}</p>
       <div className="flex items-center justify-between mt-2">
@@ -221,18 +215,24 @@ export function TimelinePlanner() {
     return now.getHours() * 60 + now.getMinutes();
   });
   const { tasks, loading, addTask, updateTask, toggleComplete } = useTodayTasks();
-  const { tasks: overdueTasks, toggleComplete: toggleOverdue } = useOverdueTasks();
+  const { tasks: overdueTasks, hiddenTasks, toggleComplete: toggleOverdue, hideFromPlanner, restoreToPlanner } = useOverdueTasks();
   const { categories: customCats } = useCustomCategories();
-  const [viewTask, setViewTask] = useState<DbTask | null>(null);
+  const [notesTask, setNotesTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ task: DbTask; pos: { x: number; y: number } } | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
       setCurrentTime(now.getHours() * 60 + now.getMinutes());
-    }, 60000); // update every minute for water-fill
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleTaskClick = (task: DbTask, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setContextMenu({ task, pos: { x: e.clientX, y: e.clientY } });
+  };
 
   let progressPercent = 0;
   if (tasks.length > 0) {
@@ -257,7 +257,7 @@ export function TimelinePlanner() {
       </div>
 
       <div className="flex gap-6">
-        {/* Left column - 70% - Today's timeline */}
+        {/* Left column - Today's timeline */}
         <div className="flex-[7] min-w-0">
           {loading ? (
             <p className="text-muted-foreground text-sm">Carregando tarefas...</p>
@@ -288,7 +288,7 @@ export function TimelinePlanner() {
                       status={status}
                       index={i}
                       onToggle={() => toggleComplete(task.id, !task.completed)}
-                      onClick={() => setViewTask(task)}
+                      onClick={(e) => handleTaskClick(task, e)}
                       customCats={customCats}
                       fillPercent={status === "active" ? getActivePercent(task, currentTime) : 0}
                     />
@@ -299,7 +299,7 @@ export function TimelinePlanner() {
           )}
         </div>
 
-        {/* Right column - 30% - Overdue */}
+        {/* Right column - Overdue */}
         <div className="hidden lg:block flex-[3] min-w-0">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-4 h-4 text-destructive" />
@@ -315,25 +315,66 @@ export function TimelinePlanner() {
               <p className="text-xs text-muted-foreground">Nenhuma pendência! 🎉</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+            <div className="flex flex-col gap-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
               {overdueTasks.map(task => (
                 <OverdueCard
                   key={task.id}
                   task={task}
                   customCats={customCats}
                   onToggle={() => toggleOverdue(task.id)}
-                  onClick={() => setViewTask(task)}
+                  onClick={(e) => handleTaskClick(task, e)}
+                  onHide={() => hideFromPlanner(task.id)}
                 />
               ))}
             </div>
           )}
+
+          {/* Restore hidden tasks */}
+          {hiddenTasks.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1.5 mt-3 text-xs text-primary hover:text-primary/80 transition-colors">
+                  <Plus className="w-3.5 h-3.5" />
+                  Restaurar pendência ({hiddenTasks.length})
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-72 bg-popover border-border/30 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground px-2 py-1 mb-1">Tarefas ocultas</p>
+                <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
+                  {hiddenTasks.map(task => {
+                    const catInfo = getCatInfo(task, customCats);
+                    return (
+                      <button
+                        key={task.id}
+                        onClick={() => restoreToPlanner(task.id)}
+                        className="flex items-center gap-2 px-2 py-2 rounded-lg text-left hover:bg-secondary/80 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">{task.title}</p>
+                          <span className="text-[10px] text-muted-foreground">{catInfo.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
       </div>
 
-      <TaskDetailModal
-        task={viewTask}
-        onClose={() => setViewTask(null)}
-        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+      <TaskContextMenu
+        task={contextMenu?.task || null}
+        position={contextMenu?.pos || null}
+        onClose={() => setContextMenu(null)}
+        onOpenNotes={(t) => setNotesTask(t)}
+        onEdit={(t) => setEditTask(t)}
+      />
+      <NotesPanel
+        task={notesTask}
+        onClose={() => setNotesTask(null)}
+        onEdit={(t) => { setNotesTask(null); setEditTask(t); }}
         onToggleComplete={(id, completed) => toggleComplete(id, completed)}
       />
       <TaskDrawer

@@ -95,6 +95,7 @@ export type Database = {
           custom_category_id: string | null
           description: string | null
           end_time: string
+          hidden_from_planner: boolean
           icon: string
           id: string
           is_all_day: boolean
@@ -113,6 +114,7 @@ export type Database = {
           custom_category_id?: string | null
           description?: string | null
           end_time: string
+          hidden_from_planner?: boolean
           icon?: string
           id?: string
           is_all_day?: boolean
@@ -131,6 +133,7 @@ export type Database = {
           custom_category_id?: string | null
           description?: string | null
           end_time?: string
+          hidden_from_planner?: boolean
           icon?: string
           id?: string
           is_all_day?: boolean

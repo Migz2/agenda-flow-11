@@ -4,7 +4,8 @@ import { Check, Trash2, Filter } from "lucide-react";
 import { iconMap } from "@/lib/taskData";
 import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks";
 import { TaskDrawer } from "./TaskDrawer";
-import { TaskDetailModal } from "./TaskDetailModal";
+import { TaskContextMenu } from "./TaskContextMenu";
+import { NotesPanel } from "./NotesPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function getDayLabel(dateStr: string): string {
@@ -35,9 +36,10 @@ function groupTasksByDay(tasks: DbTask[]): Record<string, DbTask[]> {
 export function TaskListPage() {
   const { tasks, loading, addTask, updateTask, toggleComplete, deleteTask } = useAllTasks();
   const { categories: customCats } = useCustomCategories();
-  const [viewTask, setViewTask] = useState<DbTask | null>(null);
+  const [notesTask, setNotesTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("__all");
+  const [contextMenu, setContextMenu] = useState<{ task: DbTask; pos: { x: number; y: number } } | null>(null);
 
   const filteredTasks = useMemo(() => {
     if (categoryFilter === "__all") return tasks;
@@ -58,6 +60,11 @@ export function TaskListPage() {
       if (cc) return { label: cc.name, color: cc.color };
     }
     return { label: task.category || "Geral", color: "#666" };
+  };
+
+  const handleTaskClick = (task: DbTask, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setContextMenu({ task, pos: { x: e.clientX, y: e.clientY } });
   };
 
   return (
@@ -98,7 +105,6 @@ export function TaskListPage() {
         </div>
       ) : (
         <>
-          {/* Pending tasks grouped by day */}
           {sortedDays.map(day => (
             <div key={day} className="mb-6">
               <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 capitalize">
@@ -115,7 +121,7 @@ export function TaskListPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
                       className="flex items-center gap-4 bg-card rounded-xl px-4 py-3 border border-border/30 cursor-pointer hover:border-border/60 transition-colors"
-                      onClick={() => setViewTask(task)}
+                      onClick={(e) => handleTaskClick(task, e)}
                     >
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, true); }}
@@ -144,7 +150,6 @@ export function TaskListPage() {
             </div>
           ))}
 
-          {/* Completed */}
           {completed.length > 0 && (
             <div className="mt-4">
               <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Concluídas</h3>
@@ -158,7 +163,7 @@ export function TaskListPage() {
                       animate={{ opacity: 0.6 }}
                       transition={{ delay: i * 0.03 }}
                       className="flex items-center gap-4 bg-card/50 rounded-xl px-4 py-3 border border-border/20 cursor-pointer"
-                      onClick={() => setViewTask(task)}
+                      onClick={(e) => handleTaskClick(task, e)}
                     >
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, false); }}
@@ -180,10 +185,17 @@ export function TaskListPage() {
         </>
       )}
 
-      <TaskDetailModal
-        task={viewTask}
-        onClose={() => setViewTask(null)}
-        onEdit={(t) => { setViewTask(null); setEditTask(t); }}
+      <TaskContextMenu
+        task={contextMenu?.task || null}
+        position={contextMenu?.pos || null}
+        onClose={() => setContextMenu(null)}
+        onOpenNotes={(t) => setNotesTask(t)}
+        onEdit={(t) => setEditTask(t)}
+      />
+      <NotesPanel
+        task={notesTask}
+        onClose={() => setNotesTask(null)}
+        onEdit={(t) => { setNotesTask(null); setEditTask(t); }}
         onToggleComplete={(id, completed) => toggleComplete(id, completed)}
       />
       <TaskDrawer onSubmit={addTask} onUpdate={updateTask} editTask={editTask} onClose={() => setEditTask(null)} />

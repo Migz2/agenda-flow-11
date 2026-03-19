@@ -1,0 +1,1 @@
+ALTER TABLE public.tasks ADD COLUMN hidden_from_planner boolean NOT NULL DEFAULT false;

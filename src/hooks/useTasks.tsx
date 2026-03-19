@@ -161,6 +161,15 @@ export function useTasks(dateFilter?: string) {
     if (error) await fetchTasks();
   };
 
+  const setHiddenFromPlanner = async (taskId: string, hidden: boolean) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, hidden_from_planner: hidden } : t));
+    const { error } = await supabase
+      .from("tasks")
+      .update({ hidden_from_planner: hidden, updated_at: new Date().toISOString() } as any)
+      .eq("id", taskId);
+    if (error) await fetchTasks();
+  };
+
   const deleteBatch = async (batchId: string) => {
     setTasks(prev => prev.filter(t => t.batch_id !== batchId));
     const { error } = await supabase.from("tasks").delete().eq("batch_id", batchId);

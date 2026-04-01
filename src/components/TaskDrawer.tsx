@@ -135,7 +135,7 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
       {!editTask && (
         <button
           onClick={() => handleOpenChange(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center glow-pink shadow-lg hover:scale-105 transition-transform"
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center glow-pink neu-raised hover:scale-105 transition-transform"
         >
           <Plus className="w-6 h-6" />
         </button>
@@ -152,7 +152,7 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
         <div className="px-4 pb-4 overflow-y-auto flex flex-col gap-4">
           <div>
             <Label className="text-xs text-muted-foreground">Nome da tarefa *</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Reunião de equipe" className="bg-secondary border-border/50 mt-1" />
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Reunião de equipe" className="bg-secondary border-0 neu-pressed mt-1 rounded-xl" />
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Detalhes</Label>
@@ -163,7 +163,7 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">Data</Label>
-              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-secondary border-border/50 mt-1" />
+              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-secondary border-0 neu-pressed mt-1 rounded-xl" />
             </div>
             <div className="flex items-end gap-2 pb-0.5">
               <Switch checked={isAllDay} onCheckedChange={setIsAllDay} />
@@ -174,11 +174,11 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Início</Label>
-                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="bg-secondary border-border/50 mt-1" />
+                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="bg-secondary border-0 neu-pressed mt-1 rounded-xl" />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Fim</Label>
-                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="bg-secondary border-border/50 mt-1" />
+                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="bg-secondary border-0 neu-pressed mt-1 rounded-xl" />
               </div>
             </div>
           )}
@@ -186,10 +186,10 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
             <div>
               <Label className="text-xs text-muted-foreground">Categoria</Label>
               <Select value={customCategoryId || "__none"} onValueChange={v => setCustomCategoryId(v === "__none" ? null : v)}>
-                <SelectTrigger className="bg-secondary border-border/50 mt-1">
+                <SelectTrigger className="bg-secondary border-0 neu-pressed mt-1 rounded-xl">
                   <SelectValue>{currentCatLabel}</SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border/30">
+                <SelectContent className="bg-card neu-raised border-0 rounded-2xl">
                   <SelectItem value="__none">
                     <span className="text-muted-foreground">Sem categoria</span>
                   </SelectItem>
@@ -210,10 +210,10 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
             <div>
               <Label className="text-xs text-muted-foreground">Recorrência</Label>
               <Select value={recurrence} onValueChange={setRecurrence}>
-                <SelectTrigger className="bg-secondary border-border/50 mt-1">
+                <SelectTrigger className="bg-secondary border-0 neu-pressed mt-1 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border/30">
+                <SelectContent className="bg-card neu-raised border-0 rounded-2xl">
                   <SelectItem value="none">Nenhuma</SelectItem>
                   <SelectItem value="daily">Diária</SelectItem>
                   <SelectItem value="weekly">Semanal</SelectItem>
@@ -224,9 +224,9 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
           </div>
 
           {showNewCat && (
-            <div className="bg-secondary/50 rounded-xl p-3 border border-border/30 flex flex-col gap-2">
+            <div className="bg-secondary/50 neu-pressed rounded-2xl p-3 flex flex-col gap-2">
               <Label className="text-xs text-muted-foreground">Nova Categoria</Label>
-              <Input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="Nome da categoria" className="bg-secondary border-border/50" />
+              <Input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="Nome da categoria" className="bg-secondary border-0 neu-pressed rounded-xl" />
               <div>
                 <Label className="text-xs text-muted-foreground">Cor</Label>
                 <div className="flex gap-2 mt-1 flex-wrap">
@@ -240,7 +240,7 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
                   ))}
                 </div>
               </div>
-              <Button size="sm" onClick={handleCreateCategory} className="bg-primary hover:bg-primary/90 text-primary-foreground mt-1">
+              <Button size="sm" onClick={handleCreateCategory} className="bg-primary hover:bg-primary/90 text-primary-foreground mt-1 rounded-xl neu-btn">
                 Criar Categoria
               </Button>
             </div>
@@ -250,10 +250,10 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
             <div>
               <Label className="text-xs text-muted-foreground">Ícone</Label>
               <Select value={icon} onValueChange={setIcon}>
-                <SelectTrigger className="bg-secondary border-border/50 mt-1">
+                <SelectTrigger className="bg-secondary border-0 neu-pressed mt-1 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border/30">
+                <SelectContent className="bg-card neu-raised border-0 rounded-2xl">
                   {iconOptions.map(ic => (
                     <SelectItem key={ic} value={ic}>{ic}</SelectItem>
                   ))}
@@ -262,15 +262,15 @@ export function TaskDrawer({ onSubmit, onUpdate, defaultDate, editTask, onClose 
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Local</Label>
-              <Input value={location} onChange={e => setLocation(e.target.value)} placeholder="Opcional" className="bg-secondary border-border/50 mt-1" />
+              <Input value={location} onChange={e => setLocation(e.target.value)} placeholder="Opcional" className="bg-secondary border-0 neu-pressed mt-1 rounded-xl" />
             </div>
           </div>
         </div>
         <DrawerFooter className="flex-row gap-3">
           <DrawerClose asChild>
-            <Button variant="outline" className="flex-1 border-border/50">Cancelar</Button>
+            <Button variant="outline" className="flex-1 border-border/50 rounded-xl neu-btn">Cancelar</Button>
           </DrawerClose>
-          <Button onClick={handleSubmit} disabled={loading || !title.trim()} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground glow-pink">
+          <Button onClick={handleSubmit} disabled={loading || !title.trim()} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground glow-pink rounded-xl neu-btn">
             {loading ? "Salvando..." : editTask ? "Salvar Alterações" : "Criar Tarefa"}
           </Button>
         </DrawerFooter>

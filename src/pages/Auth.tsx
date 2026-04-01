@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { CalendarDays, Mail, Lock, User } from "lucide-react";
+import { CalendarDays, Mail, Lock, User, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,6 +13,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,20 +43,27 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4 relative">
+      <button
+        onClick={toggleTheme}
+        className="absolute top-4 right-4 p-2 rounded-xl neu-btn text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm"
       >
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center glow-pink">
+          <div className="w-10 h-10 rounded-2xl bg-primary/20 neu-raised flex items-center justify-center glow-pink">
             <CalendarDays className="w-5 h-5 text-primary" />
           </div>
           <h1 className="text-2xl font-display font-bold text-foreground">NeonPlanner</h1>
         </div>
 
-        <div className="bg-card rounded-2xl p-6 border border-border/30">
+        <div className="bg-card neu-raised rounded-2xl p-6">
           <h2 className="text-lg font-display font-semibold text-foreground mb-1">
             {isLogin ? "Entrar" : "Criar conta"}
           </h2>
@@ -70,7 +79,7 @@ export default function Auth() {
                   placeholder="Seu nome"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="pl-10 bg-secondary border-border/50"
+                  className="pl-10 bg-secondary border-0 neu-pressed rounded-xl"
                   required
                 />
               </div>
@@ -82,7 +91,7 @@ export default function Auth() {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 bg-secondary border-border/50"
+                className="pl-10 bg-secondary border-0 neu-pressed rounded-xl"
                 required
               />
             </div>
@@ -93,12 +102,12 @@ export default function Auth() {
                 placeholder="Senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 bg-secondary border-border/50"
+                className="pl-10 bg-secondary border-0 neu-pressed rounded-xl"
                 minLength={6}
                 required
               />
             </div>
-            <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink">
+            <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink rounded-xl neu-btn">
               {loading ? "Carregando..." : isLogin ? "Entrar" : "Criar conta"}
             </Button>
           </form>

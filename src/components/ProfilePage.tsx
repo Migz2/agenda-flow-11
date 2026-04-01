@@ -14,10 +14,10 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card rounded-2xl p-5 border border-border/30"
+      className="bg-card neu-flat rounded-2xl p-5"
     >
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}26` }}>
+        <div className="w-10 h-10 rounded-xl neu-btn flex items-center justify-center" style={{ backgroundColor: `${color}26` }}>
           <Icon className="w-5 h-5" style={{ color }} />
         </div>
         <p className="text-xs text-muted-foreground">{label}</p>
@@ -65,10 +65,10 @@ export function ProfilePage() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-card rounded-2xl p-6 border border-border/30 mb-6"
+        className="bg-card neu-raised rounded-2xl p-6 mb-6"
       >
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center glow-pink">
+          <div className="w-16 h-16 rounded-2xl bg-primary/20 neu-flat flex items-center justify-center glow-pink">
             <User className="w-8 h-8 text-primary" />
           </div>
           <div>
@@ -93,13 +93,13 @@ export function ProfilePage() {
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
-                className="bg-secondary border-border/50 mt-1"
+                className="bg-secondary border-0 neu-pressed mt-1 rounded-xl"
               />
             </div>
             <Button
               onClick={handlePasswordChange}
               disabled={loading || !newPassword}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl neu-btn"
             >
               {loading ? "..." : "Salvar"}
             </Button>
@@ -109,10 +109,10 @@ export function ProfilePage() {
 
       <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-4">Resumo de Performance</h3>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={ListTodo} label="Total de Tarefas" value={String(totalTasks)} color="#00d4ff" />
-        <StatCard icon={CheckCircle} label="Concluídas" value={String(totalCompleted)} color="#22cc44" />
-        <StatCard icon={BarChart3} label="Pendentes" value={String(totalPending)} color="#ff6600" />
-        <StatCard icon={TrendingUp} label="Taxa de Conclusão" value={`${rate}%`} color="#ff0080" />
+        <StatCard icon={ListTodo} label="Total de Tarefas" value={String(totalTasks)} color="hsl(var(--neon-blue))" />
+        <StatCard icon={CheckCircle} label="Concluídas" value={String(totalCompleted)} color="hsl(var(--neon-green))" />
+        <StatCard icon={BarChart3} label="Pendentes" value={String(totalPending)} color="hsl(var(--neon-orange))" />
+        <StatCard icon={TrendingUp} label="Taxa de Conclusão" value={`${rate}%`} color="hsl(var(--primary))" />
       </div>
     </div>
   );

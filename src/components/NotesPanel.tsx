@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Check, Pencil, MapPin, Clock, CalendarDays, Repeat } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { RichTextContent } from "./RichTextEditor";
+import { X, Check, Pencil, MapPin, Clock, CalendarDays, Repeat, Loader2 } from "lucide-react";
+import { RichTextEditor } from "./RichTextEditor";
 import { iconMap } from "@/lib/taskData";
 import { useCustomCategories, type DbTask } from "@/hooks/useTasks";
+import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 
 interface NotesPanelProps {
   task: DbTask | null;
@@ -38,6 +40,42 @@ const recurrenceLabels: Record<string, string> = {
 
 export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPanelProps) {
   const { categories: customCats } = useCustomCategories();
+  const [description, setDescription] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const taskIdRef = useRef<string | null>(null);
+
+  // Sync description when task changes
+  useEffect(() => {
+    if (task) {
+      setDescription(task.description || "");
+      taskIdRef.current = task.id;
+      setSaveStatus("idle");
+    }
+  }, [task?.id]);
+
+  const saveDescription = useCallback(async (taskId: string, html: string) => {
+    setSaveStatus("saving");
+    await supabase
+      .from("tasks")
+      .update({ description: html, updated_at: new Date().toISOString() } as any)
+      .eq("id", taskId);
+    setSaveStatus("saved");
+    setTimeout(() => setSaveStatus(prev => prev === "saved" ? "idle" : prev), 2000);
+  }, []);
+
+  const handleDescriptionChange = useCallback((html: string) => {
+    setDescription(html);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (taskIdRef.current) {
+        saveDescription(taskIdRef.current, html);
+      }
+    }, 800);
+  }, [saveDescription]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   const getCatInfo = (t: DbTask) => {
     if (t.custom_category_id) {
@@ -51,7 +89,6 @@ export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPan
     <AnimatePresence>
       {task && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -59,7 +96,6 @@ export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPan
             className="fixed inset-0 z-[60] bg-background/40 backdrop-blur-sm"
             onClick={onClose}
           />
-          {/* Panel */}
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -80,13 +116,13 @@ export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPan
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+                          className="w-12 h-12 rounded-2xl neu-raised flex items-center justify-center shrink-0"
                           style={{ backgroundColor: catInfo.color }}
                         >
                           {IconComp ? (
-                            <IconComp className="w-6 h-6 text-background" />
+                            <IconComp className="w-6 h-6 text-primary-foreground" />
                           ) : (
-                            <CalendarDays className="w-6 h-6 text-background" />
+                            <CalendarDays className="w-6 h-6 text-primary-foreground" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -110,7 +146,7 @@ export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPan
                       </div>
                       <button
                         onClick={onClose}
-                        className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        className="p-1.5 rounded-xl neu-btn hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -147,27 +183,30 @@ export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPan
                       )}
                     </div>
 
-                    {/* Notes */}
-                    {task.description && task.description !== "" && task.description !== "<p></p>" ? (
-                      <div>
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Anotações</p>
-                        <div className="bg-secondary/50 rounded-lg p-4 border border-border/20">
-                          <RichTextContent html={task.description} />
-                        </div>
+                    {/* Editable Notes */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Anotações</p>
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          {saveStatus === "saving" && <><Loader2 className="w-3 h-3 animate-spin" /> Salvando...</>}
+                          {saveStatus === "saved" && <><Check className="w-3 h-3 text-primary" /> Salvo</>}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-sm text-muted-foreground">Sem anotações.</p>
-                        <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Editar" para adicionar.</p>
+                      <div className="neu-pressed rounded-xl p-1">
+                        <RichTextEditor
+                          value={description}
+                          onChange={handleDescriptionChange}
+                          placeholder="Escreva suas anotações aqui..."
+                        />
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Footer actions */}
                   <div className="px-6 py-4 border-t border-border/20 flex gap-3 shrink-0">
                     <Button
                       variant="outline"
-                      className="flex-1 border-border/50"
+                      className="flex-1 border-border/50 neu-btn"
                       onClick={() => {
                         onToggleComplete(task.id, !task.completed);
                         onClose();
@@ -177,7 +216,7 @@ export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPan
                       {task.completed ? "Desmarcar" : "Concluir"}
                     </Button>
                     <Button
-                      className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground glow-pink"
+                      className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground glow-pink neu-btn"
                       onClick={() => {
                         onEdit(task);
                         onClose();

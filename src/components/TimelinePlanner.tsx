@@ -80,7 +80,7 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats, fill
     >
       <div className="relative z-10 shrink-0">
         <div
-          className={`w-14 h-14 lg:w-16 lg:h-16 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer
+          className={`w-14 h-14 lg:w-16 lg:h-16 rounded-2xl neu-raised flex items-center justify-center transition-all duration-500 cursor-pointer
             ${isPast ? "opacity-50" : ""}
             ${isFuture ? "bg-inactive" : ""}
           `}
@@ -88,20 +88,20 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats, fill
           onClick={onClick}
         >
           {isCompleted ? (
-            <Check className="w-6 h-6 lg:w-7 lg:h-7 text-background" strokeWidth={3} />
+            <Check className="w-6 h-6 lg:w-7 lg:h-7 text-primary-foreground" strokeWidth={3} />
           ) : (
-            IconComp && <IconComp className={`w-6 h-6 lg:w-7 lg:h-7 ${isFuture ? "text-muted-foreground" : "text-background"}`} />
+            IconComp && <IconComp className={`w-6 h-6 lg:w-7 lg:h-7 ${isFuture ? "text-muted-foreground" : "text-primary-foreground"}`} />
           )}
         </div>
       </div>
 
       <div
-        className={`pt-1 flex-1 min-w-0 cursor-pointer relative overflow-hidden rounded-xl ${isActive ? "px-4 py-3 border border-border/30" : ""} ${isPast && !isCompleted ? "opacity-60" : ""}`}
+        className={`pt-1 flex-1 min-w-0 cursor-pointer relative overflow-hidden rounded-2xl ${isActive ? "px-4 py-3 neu-flat" : ""} ${isPast && !isCompleted ? "opacity-60" : ""}`}
         onClick={onClick}
       >
         {isActive && (
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-b-xl transition-all duration-1000 ease-out"
+            className="absolute bottom-0 left-0 right-0 rounded-b-2xl transition-all duration-1000 ease-out"
             style={{
               height: `${fillPercent}%`,
               background: `linear-gradient(to top, ${catColor}30, ${catColor}08)`,
@@ -126,7 +126,7 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats, fill
           </h3>
           {isActive && (
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden neu-pressed">
                 <div
                   className="h-full rounded-full transition-all duration-1000 ease-out"
                   style={{ width: `${fillPercent}%`, backgroundColor: catColor }}
@@ -144,8 +144,8 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats, fill
             <span
               className="text-[10px] font-medium px-2 py-0.5 rounded-full"
               style={{
-                backgroundColor: isFuture ? "hsl(0 0% 16%)" : `${catColor}26`,
-                color: isFuture ? "hsl(0 0% 45%)" : catColor,
+                backgroundColor: isFuture ? "hsl(var(--inactive))" : `${catColor}26`,
+                color: isFuture ? "hsl(var(--muted-foreground))" : catColor,
               }}
             >
               {catInfo.label}
@@ -157,12 +157,12 @@ function TimelineNode({ task, status, index, onToggle, onClick, customCats, fill
       <div className="shrink-0 pt-3">
         <button
           onClick={onToggle}
-          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer
-            ${task.completed ? "" : "border-muted-foreground/30 hover:border-muted-foreground"}
+          className={`w-7 h-7 rounded-xl neu-btn flex items-center justify-center transition-all cursor-pointer
+            ${task.completed ? "" : "text-muted-foreground hover:text-foreground"}
           `}
-          style={task.completed ? { borderColor: catColor, backgroundColor: `${catColor}33` } : undefined}
+          style={task.completed ? { backgroundColor: `${catColor}33`, color: catColor } : undefined}
         >
-          {task.completed && <Check className="w-3.5 h-3.5" style={{ color: catColor }} />}
+          {task.completed && <Check className="w-4 h-4" style={{ color: catColor }} />}
         </button>
       </div>
     </motion.div>
@@ -175,7 +175,7 @@ function OverdueCard({ task, customCats, onToggle, onClick, onHide }: { task: Db
 
   return (
     <div
-      className="bg-card/60 rounded-xl p-3 border border-border/20 cursor-pointer hover:border-border/50 transition-colors group"
+      className="bg-card neu-flat rounded-2xl p-3 cursor-pointer hover:scale-[1.02] transition-transform group"
       onClick={onClick}
     >
       <div className="flex items-center gap-2 mb-1">
@@ -186,7 +186,7 @@ function OverdueCard({ task, customCats, onToggle, onClick, onHide }: { task: Db
             <TooltipTrigger asChild>
               <button
                 onClick={(e) => { e.stopPropagation(); onHide(); }}
-                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-all"
+                className="opacity-0 group-hover:opacity-100 p-0.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-all"
               >
                 <EyeOff className="w-3.5 h-3.5" />
               </button>
@@ -200,7 +200,7 @@ function OverdueCard({ task, customCats, onToggle, onClick, onHide }: { task: Db
         <span className="text-[10px] text-destructive">{daysAgo}d atrás</span>
         <button
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="w-5 h-5 rounded-full border border-muted-foreground/30 hover:border-foreground flex items-center justify-center transition-colors"
+          className="w-5 h-5 rounded-lg neu-btn flex items-center justify-center transition-colors"
         >
           <Check className="w-3 h-3 text-muted-foreground" />
         </button>
@@ -257,12 +257,11 @@ export function TimelinePlanner() {
       </div>
 
       <div className="flex gap-6">
-        {/* Left column - Today's timeline */}
         <div className="flex-[7] min-w-0">
           {loading ? (
             <p className="text-muted-foreground text-sm">Carregando tarefas...</p>
           ) : tasks.length === 0 ? (
-            <div className="text-center py-16">
+            <div className="text-center py-16 neu-flat rounded-2xl">
               <p className="text-muted-foreground text-sm">Nenhuma tarefa para hoje.</p>
               <p className="text-xs text-muted-foreground mt-1">Clique no + para criar uma nova tarefa.</p>
             </div>
@@ -272,7 +271,7 @@ export function TimelinePlanner() {
               <motion.div
                 className="absolute left-7 lg:left-8 top-0 w-0.5 z-0"
                 style={{
-                  background: "linear-gradient(to bottom, hsl(330 100% 50%), hsl(22 100% 50%), hsl(186 100% 50%))",
+                  background: "linear-gradient(to bottom, hsl(var(--primary)), hsl(var(--accent)))",
                 }}
                 initial={{ height: "0%" }}
                 animate={{ height: `${progressPercent}%` }}
@@ -299,7 +298,6 @@ export function TimelinePlanner() {
           )}
         </div>
 
-        {/* Right column - Overdue */}
         <div className="hidden lg:block flex-[3] min-w-0">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-4 h-4 text-destructive" />
@@ -311,11 +309,11 @@ export function TimelinePlanner() {
             )}
           </div>
           {overdueTasks.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8 neu-flat rounded-2xl">
               <p className="text-xs text-muted-foreground">Nenhuma pendência! 🎉</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+            <div className="flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
               {overdueTasks.map(task => (
                 <OverdueCard
                   key={task.id}
@@ -329,16 +327,15 @@ export function TimelinePlanner() {
             </div>
           )}
 
-          {/* Restore hidden tasks */}
           {hiddenTasks.length > 0 && (
             <Popover>
               <PopoverTrigger asChild>
-                <button className="flex items-center gap-1.5 mt-3 text-xs text-primary hover:text-primary/80 transition-colors">
+                <button className="flex items-center gap-1.5 mt-3 text-xs text-primary hover:text-primary/80 transition-colors neu-btn px-3 py-1.5 rounded-xl">
                   <Plus className="w-3.5 h-3.5" />
                   Restaurar pendência ({hiddenTasks.length})
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-72 bg-popover border-border/30 p-2">
+              <PopoverContent align="start" className="w-72 bg-card neu-raised border-0 p-2 rounded-2xl">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground px-2 py-1 mb-1">Tarefas ocultas</p>
                 <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
                   {hiddenTasks.map(task => {
@@ -347,7 +344,7 @@ export function TimelinePlanner() {
                       <button
                         key={task.id}
                         onClick={() => restoreToPlanner(task.id)}
-                        className="flex items-center gap-2 px-2 py-2 rounded-lg text-left hover:bg-secondary/80 transition-colors"
+                        className="flex items-center gap-2 px-2 py-2 rounded-xl text-left hover:bg-secondary/80 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5 text-primary shrink-0" />
                         <div className="flex-1 min-w-0">

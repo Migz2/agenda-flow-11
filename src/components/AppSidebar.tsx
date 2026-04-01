@@ -1,5 +1,6 @@
-import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap } from "lucide-react";
+import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 
 interface AppSidebarProps {
   currentPage: string;
@@ -17,15 +18,16 @@ const navItems = [
 
 export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
   const { signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <aside className="w-16 lg:w-52 min-h-screen bg-sidebar flex flex-col border-r border-border/50 shrink-0 transition-all duration-300">
+    <aside className="w-16 lg:w-52 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0 transition-all duration-300">
       <div className="p-4 lg:px-5 lg:py-6">
         <h1 className="hidden lg:block text-lg font-display font-bold text-foreground tracking-tight">
           NeonPlanner
         </h1>
         <div className="lg:hidden flex justify-center">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-primary/20 neu-flat flex items-center justify-center">
             <CalendarDays className="w-4 h-4 text-primary" />
           </div>
         </div>
@@ -39,10 +41,10 @@ export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
+                flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                 ${isActive
-                  ? "bg-sidebar-accent text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+                  ? "neu-pressed text-foreground"
+                  : "neu-btn text-muted-foreground hover:text-foreground"
                 }
               `}
             >
@@ -56,10 +58,21 @@ export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
         })}
       </nav>
 
-      <div className="px-2 lg:px-3 pb-4">
+      <div className="px-2 lg:px-3 pb-4 flex flex-col gap-2">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground neu-btn"
+        >
+          {theme === "dark" ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
+          <span className="hidden lg:block text-sm font-medium">
+            {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+          </span>
+        </button>
+
         <button
           onClick={signOut}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:text-destructive neu-btn w-full"
         >
           <LogOut className="w-5 h-5 shrink-0" />
           <span className="hidden lg:block text-sm font-medium">Sair</span>

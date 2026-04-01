@@ -25,8 +25,8 @@ function ToolbarButton({ active, onClick, children }: { active?: boolean; onClic
 export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: false, codeBlock: false, blockquote: false }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline" } }),
+      StarterKit.configure({ heading: false, codeBlock: false, blockquote: false }) as any,
+      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline" } }) as any,
     ],
     content: value || "",
     onUpdate: ({ editor }) => onChange(editor.getHTML()),

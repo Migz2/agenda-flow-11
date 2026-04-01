@@ -24,7 +24,7 @@ const Index = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background bg-grid">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-background/80 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -36,7 +36,7 @@ const Index = () => {
       </div>
       <div className="flex-1 flex flex-col min-w-0">
         <div className="lg:hidden flex items-center h-12 border-b border-border/50 px-4">
-          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground neu-btn p-1.5 rounded-xl">
             <Menu className="w-5 h-5" />
           </button>
           <span className="ml-3 font-display font-semibold text-sm text-foreground">NeonPlanner</span>

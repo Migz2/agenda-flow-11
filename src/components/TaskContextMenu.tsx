@@ -24,7 +24,6 @@ export function TaskContextMenu({ task, position, onClose, onOpenNotes, onEdit }
 
   if (!task || !position) return null;
 
-  // Adjust position to stay within viewport
   const menuWidth = 200;
   const menuHeight = 100;
   const x = Math.min(position.x, window.innerWidth - menuWidth - 16);
@@ -34,7 +33,7 @@ export function TaskContextMenu({ task, position, onClose, onOpenNotes, onEdit }
     <div className="fixed inset-0 z-[100]" onClick={onClose}>
       <div
         ref={menuRef}
-        className="absolute z-[101] bg-popover border border-border/40 rounded-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+        className="absolute z-[101] bg-card neu-raised rounded-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
         style={{ left: x, top: y, minWidth: menuWidth }}
         onClick={(e) => e.stopPropagation()}
       >

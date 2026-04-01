@@ -13,13 +13,10 @@ function getDayLabel(dateStr: string): string {
   const today = new Date();
   const tomorrow = new Date();
   tomorrow.setDate(today.getDate() + 1);
-
   const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-
   if (isSameDay(date, today)) return "Hoje";
   if (isSameDay(date, tomorrow)) return "Amanhã";
-
   return date.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 }
 
@@ -78,10 +75,10 @@ export function TaskListPage() {
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px] bg-secondary border-border/50 h-9 text-xs">
+            <SelectTrigger className="w-[180px] bg-card neu-flat h-9 text-xs rounded-xl border-0">
               <SelectValue placeholder="Filtrar categoria" />
             </SelectTrigger>
-            <SelectContent className="bg-popover border-border/30">
+            <SelectContent className="bg-card neu-raised border-0 rounded-2xl">
               <SelectItem value="__all">Todas as Categorias</SelectItem>
               {customCats.map(cc => (
                 <SelectItem key={cc.id} value={cc.id}>
@@ -99,7 +96,7 @@ export function TaskListPage() {
       {loading ? (
         <p className="text-muted-foreground text-sm">Carregando...</p>
       ) : filteredTasks.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="text-center py-16 neu-flat rounded-2xl">
           <p className="text-muted-foreground text-sm">Nenhuma tarefa encontrada.</p>
           <p className="text-xs text-muted-foreground mt-1">Clique no + para criar.</p>
         </div>
@@ -120,12 +117,12 @@ export function TaskListPage() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
-                      className="flex items-center gap-4 bg-card rounded-xl px-4 py-3 border border-border/30 cursor-pointer hover:border-border/60 transition-colors"
+                      className="flex items-center gap-4 bg-card neu-flat rounded-2xl px-4 py-3 cursor-pointer hover:scale-[1.01] transition-transform"
                       onClick={(e) => handleTaskClick(task, e)}
                     >
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, true); }}
-                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 hover:scale-110 transition-transform"
+                        className="w-10 h-10 rounded-xl neu-btn flex items-center justify-center shrink-0 hover:scale-110 transition-transform"
                         style={{ backgroundColor: `${catInfo.color}26` }}
                       >
                         {Icon && <Icon className="w-5 h-5" style={{ color: catInfo.color }} />}
@@ -162,12 +159,12 @@ export function TaskListPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 0.6 }}
                       transition={{ delay: i * 0.03 }}
-                      className="flex items-center gap-4 bg-card/50 rounded-xl px-4 py-3 border border-border/20 cursor-pointer"
+                      className="flex items-center gap-4 bg-card/50 neu-flat rounded-2xl px-4 py-3 cursor-pointer"
                       onClick={(e) => handleTaskClick(task, e)}
                     >
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleComplete(task.id, false); }}
-                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                        className="w-10 h-10 rounded-xl neu-pressed flex items-center justify-center shrink-0"
                         style={{ backgroundColor: `${catInfo.color}1a` }}
                       >
                         <Check className="w-5 h-5" style={{ color: catInfo.color }} />

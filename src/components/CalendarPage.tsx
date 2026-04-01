@@ -82,64 +82,66 @@ export function CalendarPage() {
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={prevMonth} className="p-2 rounded-xl neu-btn text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h3 className="text-lg font-display font-semibold text-foreground">
           {monthNames[month]} {year}
         </h3>
-        <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={nextMonth} className="p-2 rounded-xl neu-btn text-muted-foreground hover:text-foreground transition-colors">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 border-b border-border/30">
-        {weekDays.map(d => (
-          <div key={d} className="text-center text-[10px] text-muted-foreground font-body py-2 font-medium">{d}</div>
-        ))}
+      <div className="neu-flat rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-7 bg-secondary/50">
+          {weekDays.map(d => (
+            <div key={d} className="text-center text-[10px] text-muted-foreground font-body py-2 font-medium">{d}</div>
+          ))}
+        </div>
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-7">
+          {cells.map((day, i) => {
+            if (day === null) return <div key={`empty-${i}`} className="min-h-[90px] lg:min-h-[110px] border-b border-r border-border/20" />;
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const dayTasks = tasksByDay[dateStr] || [];
+            const isToday = dateStr === today;
+            const visible = dayTasks.slice(0, MAX_VISIBLE_TASKS);
+            const remaining = dayTasks.length - MAX_VISIBLE_TASKS;
+
+            return (
+              <div
+                key={dateStr}
+                onClick={() => setSelectedDate(dateStr)}
+                className="min-h-[90px] lg:min-h-[110px] border-b border-r border-border/20 p-1 cursor-pointer hover:bg-secondary/30 transition-colors"
+              >
+                <div className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-lg ${isToday ? "bg-primary text-primary-foreground neu-btn" : "text-foreground"}`}>
+                  {day}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {visible.map(t => {
+                    const color = getCatColor(t, customCats);
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={(e) => handleTaskClick(t, e)}
+                        className="flex items-center gap-1 text-[10px] lg:text-[11px] leading-tight truncate rounded-lg px-1 py-0.5 hover:bg-secondary/60 transition-colors cursor-pointer"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-muted-foreground shrink-0">{formatShortTime(t.start_time)}</span>
+                        <span className={`truncate ${t.completed ? "line-through text-muted-foreground/50" : "text-foreground/80"}`}>{t.title}</span>
+                      </div>
+                    );
+                  })}
+                  {remaining > 0 && (
+                    <span className="text-[10px] text-primary font-medium px-1">+{remaining} mais</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </motion.div>
       </div>
-
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-7">
-        {cells.map((day, i) => {
-          if (day === null) return <div key={`empty-${i}`} className="min-h-[90px] lg:min-h-[110px] border-b border-r border-border/20" />;
-          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const dayTasks = tasksByDay[dateStr] || [];
-          const isToday = dateStr === today;
-          const visible = dayTasks.slice(0, MAX_VISIBLE_TASKS);
-          const remaining = dayTasks.length - MAX_VISIBLE_TASKS;
-
-          return (
-            <div
-              key={dateStr}
-              onClick={() => setSelectedDate(dateStr)}
-              className="min-h-[90px] lg:min-h-[110px] border-b border-r border-border/20 p-1 cursor-pointer hover:bg-secondary/30 transition-colors"
-            >
-              <div className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground" : "text-foreground"}`}>
-                {day}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {visible.map(t => {
-                  const color = getCatColor(t, customCats);
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={(e) => handleTaskClick(t, e)}
-                      className="flex items-center gap-1 text-[10px] lg:text-[11px] leading-tight truncate rounded px-1 py-0.5 hover:bg-secondary/60 transition-colors cursor-pointer"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-muted-foreground shrink-0">{formatShortTime(t.start_time)}</span>
-                      <span className={`truncate ${t.completed ? "line-through text-muted-foreground/50" : "text-foreground/80"}`}>{t.title}</span>
-                    </div>
-                  );
-                })}
-                {remaining > 0 && (
-                  <span className="text-[10px] text-primary font-medium px-1">+{remaining} mais</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </motion.div>
 
       <AnimatePresence>
         {selectedDate && (
@@ -150,7 +152,7 @@ export function CalendarPage() {
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-card rounded-2xl p-5 border border-border/30 w-full max-w-md max-h-[70vh] overflow-y-auto"
+              className="bg-card neu-raised rounded-2xl p-5 w-full max-w-md max-h-[70vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
@@ -162,7 +164,7 @@ export function CalendarPage() {
                     {new Date(selectedDate + "T12:00:00").getDate()}
                   </h4>
                 </div>
-                <button onClick={() => setSelectedDate(null)} className="p-1 rounded-lg hover:bg-secondary text-muted-foreground">
+                <button onClick={() => setSelectedDate(null)} className="p-1 rounded-xl neu-btn hover:bg-secondary text-muted-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -177,7 +179,7 @@ export function CalendarPage() {
                       <div
                         key={t.id}
                         onClick={(e) => { handleTaskClick(t, e); setSelectedDate(null); }}
-                        className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
+                        className="flex items-center gap-3 text-sm p-2 rounded-xl hover:bg-secondary/50 cursor-pointer transition-colors"
                       >
                         <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: color }} />
                         <div className="flex-1 min-w-0">

@@ -5,23 +5,81 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 0%;
+  /* ===== LIGHT MODE (Neumorphism) ===== */
+  :root, .light {
+    --background: 35 30% 92%;
+    --foreground: 210 15% 20%;
+
+    --card: 35 25% 89%;
+    --card-foreground: 210 15% 20%;
+
+    --popover: 35 25% 90%;
+    --popover-foreground: 210 15% 20%;
+
+    --primary: 168 55% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 35 20% 85%;
+    --secondary-foreground: 210 15% 20%;
+
+    --muted: 35 15% 82%;
+    --muted-foreground: 210 10% 50%;
+
+    --accent: 168 55% 32%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 35 15% 78%;
+    --input: 35 15% 82%;
+    --ring: 168 55% 32%;
+
+    --radius: 1rem;
+
+    --neon-pink: 168 55% 32%;
+    --neon-orange: 30 70% 50%;
+    --neon-blue: 200 60% 45%;
+    --neon-green: 140 50% 40%;
+    --neon-purple: 270 40% 50%;
+    --neon-yellow: 45 80% 50%;
+
+    --surface: 35 25% 89%;
+    --surface-elevated: 35 25% 93%;
+    --inactive: 35 15% 82%;
+
+    --sidebar-background: 35 25% 87%;
+    --sidebar-foreground: 210 10% 45%;
+    --sidebar-primary: 168 55% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 35 20% 83%;
+    --sidebar-accent-foreground: 210 15% 20%;
+    --sidebar-border: 35 15% 78%;
+    --sidebar-ring: 168 55% 32%;
+
+    /* Neumorphic shadows */
+    --neu-shadow-light: 35 25% 97%;
+    --neu-shadow-dark: 35 20% 75%;
+  }
+
+  /* ===== DARK MODE (Neon) ===== */
+  .dark {
+    --background: 160 10% 7%;
     --foreground: 0 0% 90%;
 
-    --card: 0 0% 10%;
+    --card: 160 8% 12%;
     --card-foreground: 0 0% 90%;
 
-    --popover: 0 0% 8%;
+    --popover: 160 8% 10%;
     --popover-foreground: 0 0% 90%;
 
     --primary: 330 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 16%;
+    --secondary: 160 6% 16%;
     --secondary-foreground: 0 0% 90%;
 
-    --muted: 0 0% 16%;
+    --muted: 160 6% 16%;
     --muted-foreground: 0 0% 45%;
 
     --accent: 186 100% 50%;
@@ -30,11 +88,11 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 16%;
-    --input: 0 0% 16%;
+    --border: 160 6% 18%;
+    --input: 160 6% 16%;
     --ring: 330 100% 50%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     --neon-pink: 330 100% 50%;
     --neon-orange: 22 100% 50%;
@@ -43,17 +101,17 @@
     --neon-purple: 280 100% 60%;
     --neon-yellow: 50 100% 55%;
 
-    --surface: 0 0% 10%;
-    --surface-elevated: 0 0% 13%;
-    --inactive: 0 0% 16%;
+    --surface: 160 8% 12%;
+    --surface-elevated: 160 8% 15%;
+    --inactive: 160 6% 18%;
 
-    --sidebar-background: 0 0% 5%;
+    --sidebar-background: 160 10% 5%;
     --sidebar-foreground: 0 0% 60%;
     --sidebar-primary: 330 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent: 160 8% 14%;
     --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 0 0% 12%;
+    --sidebar-border: 160 8% 14%;
     --sidebar-ring: 330 100% 50%;
   }
 }
@@ -70,9 +128,73 @@
   }
 }
 
-/* Neon glow utilities */
+/* ===== Neumorphic Utilities ===== */
+@layer components {
+  .neu-flat {
+    box-shadow:
+      6px 6px 12px hsl(var(--neu-shadow-dark) / 0.5),
+      -6px -6px 12px hsl(var(--neu-shadow-light) / 0.7);
+  }
+  .neu-raised {
+    box-shadow:
+      8px 8px 16px hsl(var(--neu-shadow-dark) / 0.5),
+      -8px -8px 16px hsl(var(--neu-shadow-light) / 0.7);
+  }
+  .neu-pressed {
+    box-shadow:
+      inset 4px 4px 8px hsl(var(--neu-shadow-dark) / 0.5),
+      inset -4px -4px 8px hsl(var(--neu-shadow-light) / 0.7);
+  }
+  .neu-btn {
+    box-shadow:
+      4px 4px 8px hsl(var(--neu-shadow-dark) / 0.4),
+      -4px -4px 8px hsl(var(--neu-shadow-light) / 0.6);
+    transition: all 0.15s ease;
+  }
+  .neu-btn:active {
+    box-shadow:
+      inset 3px 3px 6px hsl(var(--neu-shadow-dark) / 0.4),
+      inset -3px -3px 6px hsl(var(--neu-shadow-light) / 0.6);
+  }
+}
+
+/* Dark mode overrides for neumorphic - use deep dark shadows + neon borders */
+.dark .neu-flat {
+  box-shadow:
+    6px 6px 14px hsl(0 0% 0% / 0.6),
+    -6px -6px 14px hsl(160 8% 18% / 0.15);
+  border: 1px solid hsl(160 6% 20%);
+}
+.dark .neu-raised {
+  box-shadow:
+    8px 8px 20px hsl(0 0% 0% / 0.7),
+    -8px -8px 20px hsl(160 8% 18% / 0.1);
+  border: 1px solid hsl(160 6% 22%);
+}
+.dark .neu-pressed {
+  box-shadow:
+    inset 4px 4px 10px hsl(0 0% 0% / 0.6),
+    inset -4px -4px 10px hsl(160 8% 18% / 0.08);
+  border: 1px solid hsl(160 6% 16%);
+}
+.dark .neu-btn {
+  box-shadow:
+    4px 4px 10px hsl(0 0% 0% / 0.5),
+    -4px -4px 10px hsl(160 8% 18% / 0.08);
+  border: 1px solid hsl(160 6% 20%);
+}
+.dark .neu-btn:active {
+  box-shadow:
+    inset 3px 3px 8px hsl(0 0% 0% / 0.5),
+    inset -3px -3px 8px hsl(160 8% 18% / 0.06);
+}
+
+/* Neon glow utilities (dark mode only) */
 .glow-pink {
   box-shadow: 0 0 15px hsl(330 100% 50% / 0.5), 0 0 40px hsl(330 100% 50% / 0.2);
+}
+.light .glow-pink {
+  box-shadow: 0 0 10px hsl(168 55% 32% / 0.3), 0 0 25px hsl(168 55% 32% / 0.1);
 }
 .glow-orange {
   box-shadow: 0 0 15px hsl(22 100% 50% / 0.5), 0 0 40px hsl(22 100% 50% / 0.2);
@@ -90,17 +212,25 @@
   box-shadow: 0 0 15px hsl(50 100% 55% / 0.5), 0 0 40px hsl(50 100% 55% / 0.2);
 }
 
+/* Dark mode grid background */
+.dark .bg-grid {
+  background-image:
+    linear-gradient(hsl(160 6% 14%) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(160 6% 14%) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(0 0% 5%);
+  background: hsl(var(--background));
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(0 0% 20%);
+  background: hsl(var(--muted));
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(0 0% 30%);
+  background: hsl(var(--muted-foreground));
 }

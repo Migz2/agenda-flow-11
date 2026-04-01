@@ -25,8 +25,8 @@ function ToolbarButton({ active, onClick, children }: { active?: boolean; onClic
 export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: false, codeBlock: false, blockquote: false }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline" } }),
+      StarterKit.configure({ heading: false, codeBlock: false, blockquote: false }) as any,
+      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline" } }) as any,
     ],
     content: value || "",
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -59,10 +59,10 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
         <ToolbarButton active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
           <Italic className="w-3.5 h-3.5" />
         </ToolbarButton>
-        <ToolbarButton active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+        <ToolbarButton active={editor.isActive("bulletList")} onClick={() => (editor.chain().focus() as any).toggleBulletList().run()}>
           <List className="w-3.5 h-3.5" />
         </ToolbarButton>
-        <ToolbarButton active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+        <ToolbarButton active={editor.isActive("orderedList")} onClick={() => (editor.chain().focus() as any).toggleOrderedList().run()}>
           <ListOrdered className="w-3.5 h-3.5" />
         </ToolbarButton>
         <ToolbarButton active={editor.isActive("link")} onClick={setLink}>

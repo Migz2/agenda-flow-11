@@ -13,6 +13,7 @@ const navItems = [
   { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "charts", label: "Charts", icon: BarChart3 },
   { id: "study", label: "Estudos", icon: GraduationCap },
+  { id: "aihub", label: "AI Hub", icon: Brain },
   { id: "profile", label: "Perfil", icon: UserCircle },
 ];
 

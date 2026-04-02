@@ -20,6 +20,7 @@ const Index = () => {
       case "calendar": return <CalendarPage />;
       case "profile": return <ProfilePage />;
       case "study": return <StudyRoutineGenerator />;
+      case "aihub": return <AIHubPage />;
       default: return <TimelinePlanner />;
     }
   };

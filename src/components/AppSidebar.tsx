@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap, Sun, Moon } from "lucide-react";
+import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap, Sun, Moon, Brain } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 

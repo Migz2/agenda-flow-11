@@ -86,6 +86,68 @@ export type Database = {
         }
         Relationships: []
       }
+      study_routines: {
+        Row: {
+          batch_id: string | null
+          block_duration_min: number
+          category_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          learning_type: Database["public"]["Enums"]["learning_type"]
+          preparation: number
+          priority: Database["public"]["Enums"]["study_priority"]
+          revisions: number
+          start_date: string
+          study_blocks: number
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          block_duration_min?: number
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          learning_type?: Database["public"]["Enums"]["learning_type"]
+          preparation?: number
+          priority?: Database["public"]["Enums"]["study_priority"]
+          revisions?: number
+          start_date?: string
+          study_blocks?: number
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          block_duration_min?: number
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          learning_type?: Database["public"]["Enums"]["learning_type"]
+          preparation?: number
+          priority?: Database["public"]["Enums"]["study_priority"]
+          revisions?: number
+          start_date?: string
+          study_blocks?: number
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_routines_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "custom_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           batch_id: string | null
@@ -162,6 +224,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      learning_type: "visual" | "reading" | "practice" | "mixed"
+      study_priority: "low" | "medium" | "high"
       task_recurrence: "none" | "daily" | "weekly" | "monthly"
     }
     CompositeTypes: {
@@ -290,6 +354,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      learning_type: ["visual", "reading", "practice", "mixed"],
+      study_priority: ["low", "medium", "high"],
       task_recurrence: ["none", "daily", "weekly", "monthly"],
     },
   },

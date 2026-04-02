@@ -6,6 +6,7 @@ import { TaskListPage } from "@/components/TaskListPage";
 import { CalendarPage } from "@/components/CalendarPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { StudyRoutineGenerator } from "@/components/StudyRoutineGenerator";
+import { AIHubPage } from "@/components/AIHubPage";
 import { Menu } from "lucide-react";
 
 const Index = () => {
@@ -19,6 +20,7 @@ const Index = () => {
       case "calendar": return <CalendarPage />;
       case "profile": return <ProfilePage />;
       case "study": return <StudyRoutineGenerator />;
+      case "aihub": return <AIHubPage />;
       default: return <TimelinePlanner />;
     }
   };

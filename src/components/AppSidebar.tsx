@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap, Sun, Moon } from "lucide-react";
+import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap, Sun, Moon, Brain } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -13,6 +13,7 @@ const navItems = [
   { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "charts", label: "Charts", icon: BarChart3 },
   { id: "study", label: "Estudos", icon: GraduationCap },
+  { id: "aihub", label: "AI Hub", icon: Brain },
   { id: "profile", label: "Perfil", icon: UserCircle },
 ];
 

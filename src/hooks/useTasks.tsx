@@ -294,7 +294,14 @@ export function useCustomCategories() {
     return null;
   };
 
-  return { categories, addCategory, refetch: fetchCategories };
+  const deleteCategory = async (id: string) => {
+    // Unlink tasks from this category (set null)
+    await supabase.from("tasks").update({ custom_category_id: null, updated_at: new Date().toISOString() } as any).eq("custom_category_id", id);
+    await supabase.from("custom_categories").delete().eq("id", id);
+    await fetchCategories();
+  };
+
+  return { categories, addCategory, deleteCategory, refetch: fetchCategories };
 }
 
 export function useStudyGenerations() {

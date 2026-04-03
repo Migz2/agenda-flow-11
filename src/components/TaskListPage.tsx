@@ -6,7 +6,9 @@ import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks"
 import { TaskDrawer } from "./TaskDrawer";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { NotesPanel } from "./NotesPanel";
+import { BatchDeleteModal } from "./BatchDeleteModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 function getDayLabel(dateStr: string): string {
   const date = new Date(dateStr);

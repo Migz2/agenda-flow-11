@@ -33,12 +33,13 @@ function groupTasksByDay(tasks: DbTask[]): Record<string, DbTask[]> {
 }
 
 export function TaskListPage() {
-  const { tasks, loading, addTask, updateTask, toggleComplete, deleteTask } = useAllTasks();
+  const { tasks, loading, addTask, updateTask, toggleComplete, deleteTask, refetch } = useAllTasks();
   const { categories: customCats } = useCustomCategories();
   const [notesTask, setNotesTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("__all");
   const [contextMenu, setContextMenu] = useState<{ task: DbTask; pos: { x: number; y: number } } | null>(null);
+  const [batchDeleteTask, setBatchDeleteTask] = useState<DbTask | null>(null);
 
   const filteredTasks = useMemo(() => {
     if (categoryFilter === "__all") return tasks;

@@ -140,9 +140,13 @@ export function TaskListPage() {
                       >
                         {catInfo.label}
                       </span>
-                      <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        if (task.batch_id) { setBatchDeleteTask(task); }
+                        else { deleteTask(task.id); }
+                      }} className="text-muted-foreground hover:text-destructive transition-colors">
+                         <Trash2 className="w-4 h-4" />
+                       </button>
                     </motion.div>
                   );
                 })}

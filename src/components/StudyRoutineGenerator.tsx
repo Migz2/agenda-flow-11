@@ -146,7 +146,7 @@ function generateStudyTasks(
           const slot = getNextSlot(prepDate, 45);
           tasks.push({
             title: `Preparação${subject.preparation > 1 ? ` ${p + 1}` : ""}: ${subject.name}`,
-            description: `Estudo preparatório para a aula de ${subject.name}.\n${getDescriptionForType(subject.learningType)}`,
+            description: "",
             start_time: slot.start.toISOString(),
             end_time: slot.end.toISOString(),
             category: subject.name.toLowerCase(),
@@ -162,7 +162,7 @@ function generateStudyTasks(
         const slot = getNextSlot(classDate, subject.blockDuration);
         tasks.push({
           title: `Estudo${subject.studyBlocks > 1 ? ` ${b + 1}` : ""}: ${subject.name}`,
-          description: `Bloco ${b + 1} de estudo.\n${getDescriptionForType(subject.learningType)}`,
+          description: "",
           start_time: slot.start.toISOString(),
           end_time: slot.end.toISOString(),
           category: subject.name.toLowerCase(),
@@ -179,7 +179,7 @@ function generateStudyTasks(
           const slot = getNextSlot(revDate, r < 2 ? 10 : 15);
           tasks.push({
             title: `Revisão ${r + 1}: ${subject.name}`,
-            description: `Revisão espaçada (${revIntervals[r]} dia${revIntervals[r] > 1 ? "s" : ""} depois).`,
+            description: "",
             start_time: slot.start.toISOString(),
             end_time: slot.end.toISOString(),
             category: subject.name.toLowerCase(),

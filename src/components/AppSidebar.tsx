@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap, Sun, Moon, Brain } from "lucide-react";
+import { CalendarDays, LayoutList, CheckSquare, Calendar, BarChart3, LogOut, UserCircle, GraduationCap, Sun, Moon, Brain, Timer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -11,9 +11,10 @@ const navItems = [
   { id: "planner", label: "Planner", icon: LayoutList },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
   { id: "calendar", label: "Calendar", icon: Calendar },
-  { id: "charts", label: "Charts", icon: BarChart3 },
+  { id: "charts", label: "Dashboard", icon: BarChart3 },
   { id: "study", label: "Estudos", icon: GraduationCap },
   { id: "aihub", label: "AI Hub", icon: Brain },
+  { id: "focus", label: "Foco", icon: Timer },
   { id: "profile", label: "Perfil", icon: UserCircle },
 ];
 
@@ -24,9 +25,7 @@ export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
   return (
     <aside className="w-16 lg:w-52 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0 transition-all duration-300">
       <div className="p-4 lg:px-5 lg:py-6">
-        <h1 className="hidden lg:block text-lg font-display font-bold text-foreground tracking-tight">
-          NeonPlanner
-        </h1>
+        <h1 className="hidden lg:block text-lg font-display font-bold text-foreground tracking-tight">NeonPlanner</h1>
         <div className="lg:hidden flex justify-center">
           <div className="w-8 h-8 rounded-xl bg-primary/20 neu-flat flex items-center justify-center">
             <CalendarDays className="w-4 h-4 text-primary" />
@@ -38,43 +37,22 @@ export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
         {navItems.map((item) => {
           const isActive = currentPage === item.id;
           return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
-                ${isActive
-                  ? "neu-pressed text-foreground"
-                  : "neu-btn text-muted-foreground hover:text-foreground"
-                }
-              `}
-            >
+            <button key={item.id} onClick={() => onNavigate(item.id)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isActive ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground hover:text-foreground"}`}>
               <item.icon className={`w-5 h-5 shrink-0 ${isActive ? "text-primary" : ""}`} />
               <span className="hidden lg:block text-sm font-medium">{item.label}</span>
-              {isActive && (
-                <div className="hidden lg:block ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
+              {isActive && <div className="hidden lg:block ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
             </button>
           );
         })}
       </nav>
 
       <div className="px-2 lg:px-3 pb-4 flex flex-col gap-2">
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground neu-btn"
-        >
+        <button onClick={toggleTheme} className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground neu-btn">
           {theme === "dark" ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
-          <span className="hidden lg:block text-sm font-medium">
-            {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
-          </span>
+          <span className="hidden lg:block text-sm font-medium">{theme === "dark" ? "Modo Claro" : "Modo Escuro"}</span>
         </button>
-
-        <button
-          onClick={signOut}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:text-destructive neu-btn w-full"
-        >
+        <button onClick={signOut} className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:text-destructive neu-btn w-full">
           <LogOut className="w-5 h-5 shrink-0" />
           <span className="hidden lg:block text-sm font-medium">Sair</span>
         </button>

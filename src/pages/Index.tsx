@@ -7,6 +7,7 @@ import { CalendarPage } from "@/components/CalendarPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { StudyRoutineGenerator } from "@/components/StudyRoutineGenerator";
 import { AIHubPage } from "@/components/AIHubPage";
+import { FocusMode } from "@/components/FocusMode";
 import { Menu } from "lucide-react";
 
 const Index = () => {
@@ -21,26 +22,20 @@ const Index = () => {
       case "profile": return <ProfilePage />;
       case "study": return <StudyRoutineGenerator />;
       case "aihub": return <AIHubPage />;
+      case "focus": return <FocusMode />;
       default: return <TimelinePlanner />;
     }
   };
 
   return (
     <div className="flex min-h-screen bg-background bg-grid">
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-background/80 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-      <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 transition-transform duration-300
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-      `}>
+      {sidebarOpen && <div className="fixed inset-0 bg-background/80 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      <div className={`fixed lg:static inset-y-0 left-0 z-50 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <AppSidebar currentPage={currentPage} onNavigate={(p) => { setCurrentPage(p); setSidebarOpen(false); }} />
       </div>
       <div className="flex-1 flex flex-col min-w-0">
         <div className="lg:hidden flex items-center h-12 border-b border-border/50 px-4">
-          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground neu-btn p-1.5 rounded-xl">
-            <Menu className="w-5 h-5" />
-          </button>
+          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground neu-btn p-1.5 rounded-xl"><Menu className="w-5 h-5" /></button>
           <span className="ml-3 font-display font-semibold text-sm text-foreground">NeonPlanner</span>
         </div>
         {renderPage()}

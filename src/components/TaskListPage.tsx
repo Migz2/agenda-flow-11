@@ -6,7 +6,9 @@ import { useAllTasks, useCustomCategories, type DbTask } from "@/hooks/useTasks"
 import { TaskDrawer } from "./TaskDrawer";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { NotesPanel } from "./NotesPanel";
+import { BatchDeleteModal } from "./BatchDeleteModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 function getDayLabel(dateStr: string): string {
   const date = new Date(dateStr);
@@ -31,12 +33,13 @@ function groupTasksByDay(tasks: DbTask[]): Record<string, DbTask[]> {
 }
 
 export function TaskListPage() {
-  const { tasks, loading, addTask, updateTask, toggleComplete, deleteTask } = useAllTasks();
+  const { tasks, loading, addTask, updateTask, toggleComplete, deleteTask, refetch } = useAllTasks();
   const { categories: customCats } = useCustomCategories();
   const [notesTask, setNotesTask] = useState<DbTask | null>(null);
   const [editTask, setEditTask] = useState<DbTask | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("__all");
   const [contextMenu, setContextMenu] = useState<{ task: DbTask; pos: { x: number; y: number } } | null>(null);
+  const [batchDeleteTask, setBatchDeleteTask] = useState<DbTask | null>(null);
 
   const filteredTasks = useMemo(() => {
     if (categoryFilter === "__all") return tasks;
@@ -137,9 +140,13 @@ export function TaskListPage() {
                       >
                         {catInfo.label}
                       </span>
-                      <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        if (task.batch_id) { setBatchDeleteTask(task); }
+                        else { deleteTask(task.id); }
+                      }} className="text-muted-foreground hover:text-destructive transition-colors">
+                         <Trash2 className="w-4 h-4" />
+                       </button>
                     </motion.div>
                   );
                 })}
@@ -196,6 +203,19 @@ export function TaskListPage() {
         onToggleComplete={(id, completed) => toggleComplete(id, completed)}
       />
       <TaskDrawer onSubmit={addTask} onUpdate={updateTask} editTask={editTask} onClose={() => setEditTask(null)} />
+      <BatchDeleteModal
+        open={!!batchDeleteTask}
+        taskTitle={batchDeleteTask?.title || ""}
+        onClose={() => setBatchDeleteTask(null)}
+        onDeleteSingle={() => { if (batchDeleteTask) { deleteTask(batchDeleteTask.id); setBatchDeleteTask(null); } }}
+        onDeleteFuture={async () => {
+          if (!batchDeleteTask?.batch_id) return;
+          // Delete this task + future tasks with same batch_id
+          await supabase.from("tasks").delete().eq("batch_id", batchDeleteTask.batch_id).gte("start_time", batchDeleteTask.start_time).eq("completed", false);
+          setBatchDeleteTask(null);
+          await refetch();
+        }}
+      />
     </div>
   );
 }

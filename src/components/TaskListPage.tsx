@@ -203,6 +203,19 @@ export function TaskListPage() {
         onToggleComplete={(id, completed) => toggleComplete(id, completed)}
       />
       <TaskDrawer onSubmit={addTask} onUpdate={updateTask} editTask={editTask} onClose={() => setEditTask(null)} />
+      <BatchDeleteModal
+        open={!!batchDeleteTask}
+        taskTitle={batchDeleteTask?.title || ""}
+        onClose={() => setBatchDeleteTask(null)}
+        onDeleteSingle={() => { if (batchDeleteTask) { deleteTask(batchDeleteTask.id); setBatchDeleteTask(null); } }}
+        onDeleteFuture={async () => {
+          if (!batchDeleteTask?.batch_id) return;
+          // Delete this task + future tasks with same batch_id
+          await supabase.from("tasks").delete().eq("batch_id", batchDeleteTask.batch_id).gte("start_time", batchDeleteTask.start_time).eq("completed", false);
+          setBatchDeleteTask(null);
+          await refetch();
+        }}
+      />
     </div>
   );
 }

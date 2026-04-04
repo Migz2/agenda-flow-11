@@ -370,7 +370,7 @@ function QuizView({ questions, sources, onBack }: { questions: QuizQuestion[]; s
 function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; onBack: () => void; categories: any[] }) {
   const { sources, addSource, removeSource, syncTaskNotes } = useNotebookSources(notebook.id);
   const { messages, addMessage, updateLastAssistant, clearMessages } = useChatMessages(notebook.id);
-  const [activeTab, setActiveTab] = useState<"sources" | "exercises" | "chat">("sources");
+  const [activeTab, setActiveTab] = useState<"sources" | "exercises" | "chat" | "feynman">("sources");
   const [chatMode, setChatMode] = useState<"sources_only" | "general">("sources_only");
   const [chatInput, setChatInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);

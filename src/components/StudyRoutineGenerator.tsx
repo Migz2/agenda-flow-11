@@ -702,6 +702,7 @@ export function StudyRoutineGenerator() {
               Cancelar
             </Button>
           </div>
+        ) : (
           <div className="flex flex-col gap-3">
             {profile?.chronotype && (
               <button

@@ -300,7 +300,7 @@ export function StudyRoutineGenerator() {
       const cat = await addCategory(sub.name, sub.color);
       const catId = cat?.id || null;
 
-      const rawTasks = generateStudyTasks(sub, weeksAhead, catId, batchId);
+      const rawTasks = generateStudyTasks(sub, weeksAhead, catId, batchId, useChronoSchedule ? chronoStartHour : undefined);
       const withCollisions = detectCollisions(rawTasks, allTasks);
       collisionCount += withCollisions.filter(c => c.shifted).length;
       const finalTasks = withCollisions.map(c => c.task);

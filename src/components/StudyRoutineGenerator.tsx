@@ -230,9 +230,13 @@ export function StudyRoutineGenerator() {
   const { addCategory } = useCustomCategories();
   const { generations, addGeneration, deleteGeneration } = useStudyGenerations();
   const { routines, addRoutine, updateRoutine, deleteRoutine, deleteFutureTasks } = useStudyRoutines();
+  const { profile } = useProfile();
   const [subjects, setSubjects] = useState<SubjectForm[]>([]);
   const [weeksAhead, setWeeksAhead] = useState(4);
   const [generating, setGenerating] = useState(false);
+  const [useChronoSchedule, setUseChronoSchedule] = useState(false);
+
+  const chronoStartHour = profile?.chronotype === "lion" ? 6 : profile?.chronotype === "wolf" ? 19 : 9;
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingRoutine, setEditingRoutine] = useState<string | null>(null);
 

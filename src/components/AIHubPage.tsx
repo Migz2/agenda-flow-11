@@ -385,6 +385,10 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [syncing, setSyncing] = useState(false);
+  const [interleaving, setInterleaving] = useState(false);
+  const [feynmanInput, setFeynmanInput] = useState("");
+  const [feynmanResult, setFeynmanResult] = useState("");
+  const [feynmanStreaming, setFeynmanStreaming] = useState(false);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 

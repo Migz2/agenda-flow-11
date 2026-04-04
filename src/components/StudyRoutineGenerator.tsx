@@ -124,7 +124,7 @@ function generateStudyTasks(
 
   function getNextSlot(date: Date, durationMin: number): { start: Date; end: Date } {
     const dateStr = date.toISOString().slice(0, 10);
-    const startHour = daySlots[dateStr] || 8;
+    const startHour = daySlots[dateStr] || (chronotypeStartHour ?? 8);
     const startDate = setTime(date, Math.floor(startHour), Math.round((startHour % 1) * 60));
     const endDate = new Date(startDate.getTime() + durationMin * 60000);
     daySlots[dateStr] = startHour + (durationMin + 15) / 60;

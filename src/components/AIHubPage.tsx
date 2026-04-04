@@ -116,7 +116,7 @@ export function AIHubPage() {
   };
 
   return (
-    <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+    <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
       <div className="mb-8">
         <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">Inteligência Artificial</p>
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1 flex items-center gap-3">
@@ -370,7 +370,7 @@ function QuizView({ questions, sources, onBack }: { questions: QuizQuestion[]; s
 function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; onBack: () => void; categories: any[] }) {
   const { sources, addSource, removeSource, syncTaskNotes } = useNotebookSources(notebook.id);
   const { messages, addMessage, updateLastAssistant, clearMessages } = useChatMessages(notebook.id);
-  const [activeTab, setActiveTab] = useState<"sources" | "exercises" | "chat">("sources");
+  const [activeTab, setActiveTab] = useState<"sources" | "exercises" | "chat" | "feynman">("sources");
   const [chatMode, setChatMode] = useState<"sources_only" | "general">("sources_only");
   const [chatInput, setChatInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -385,6 +385,10 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [syncing, setSyncing] = useState(false);
+  const [interleaving, setInterleaving] = useState(false);
+  const [feynmanInput, setFeynmanInput] = useState("");
+  const [feynmanResult, setFeynmanResult] = useState("");
+  const [feynmanStreaming, setFeynmanStreaming] = useState(false);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -429,7 +433,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ type: "quiz", sources: sources.map(s => ({ title: s.title, content: s.content })) }),
+        body: JSON.stringify({ type: "quiz", sources: sources.map(s => ({ title: s.title, content: s.content })), interleaving }),
       });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
@@ -471,8 +475,26 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const tabs = [
     { id: "sources", label: "Fontes", icon: FileText },
     { id: "exercises", label: "Quiz", icon: Sparkles },
+    { id: "feynman", label: "Feynman", icon: MessageCircle },
     { id: "chat", label: "Chat Tutor", icon: MessageSquare },
   ] as const;
+
+  const handleFeynman = async () => {
+    if (!feynmanInput.trim() || feynmanStreaming) return;
+    setFeynmanStreaming(true);
+    setFeynmanResult("");
+    let text = "";
+    await streamChat({
+      messages: [{ role: "user", content: feynmanInput }],
+      mode: "sources_only",
+      sources: sources.map(s => ({ title: s.title, content: s.content })),
+      type: "feynman",
+      question: feynmanInput,
+      onDelta: (chunk) => { text += chunk; setFeynmanResult(text); },
+      onDone: () => setFeynmanStreaming(false),
+      onError: () => { setFeynmanStreaming(false); setFeynmanResult("Erro ao avaliar."); },
+    });
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -494,10 +516,16 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
               </div>
             )}
           </div>
-          <Button onClick={handleGenerateQuiz} disabled={generatingQuiz} size="sm" className="bg-primary text-primary-foreground glow-pink text-xs">
-            {generatingQuiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
-            Gerar Quiz
-          </Button>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={interleaving} onChange={e => setInterleaving(e.target.checked)} className="rounded" />
+              Interleaving
+            </label>
+            <Button onClick={handleGenerateQuiz} disabled={generatingQuiz} size="sm" className="bg-primary text-primary-foreground glow-pink text-xs">
+              {generatingQuiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+              Gerar Quiz
+            </Button>
+          </div>
         </div>
         <div className="flex gap-1 mt-3">
           {tabs.map(tab => (
@@ -578,6 +606,41 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
                 <p className="text-sm">Nenhum quiz gerado ainda.</p>
                 <p className="text-xs mt-1">Clique em "Gerar Quiz" para criar questões interativas baseadas nas suas fontes.</p>
               </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "feynman" && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-card neu-flat rounded-2xl p-5">
+              <h3 className="text-sm font-display font-semibold text-foreground mb-1 flex items-center gap-2">
+                💡 Técnica Feynman
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Explique um conceito com suas próprias palavras. A IA vai avaliar a clareza e apontar lacunas.
+              </p>
+              <Textarea
+                value={feynmanInput}
+                onChange={e => setFeynmanInput(e.target.value)}
+                placeholder="Explique aqui um conceito como se estivesse ensinando a alguém..."
+                className="bg-secondary border-border/50 min-h-[120px] mb-3"
+              />
+              <Button
+                onClick={handleFeynman}
+                disabled={feynmanStreaming || !feynmanInput.trim()}
+                className="bg-primary text-primary-foreground glow-pink"
+              >
+                {feynmanStreaming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Avaliar Explicação
+              </Button>
+            </div>
+
+            {feynmanResult && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-2xl p-5 border border-border/30">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{feynmanResult}</ReactMarkdown>
+                </div>
+              </motion.div>
             )}
           </div>
         )}

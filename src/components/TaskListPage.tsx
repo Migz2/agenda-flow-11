@@ -68,7 +68,7 @@ export function TaskListPage() {
   };
 
   return (
-    <div className="flex-1 p-4 lg:p-8 overflow-y-auto relative">
+    <div className="flex-1 p-4 lg:p-8 overflow-y-auto relative pt-20">
       <div className="mb-6 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">Overview</p>

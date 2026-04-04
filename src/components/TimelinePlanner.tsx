@@ -247,7 +247,7 @@ export function TimelinePlanner() {
   }
 
   return (
-    <div className="flex-1 p-4 lg:p-8 overflow-y-auto relative">
+    <div className="flex-1 p-4 lg:p-8 overflow-y-auto relative pt-20">
       <div className="mb-8">
         <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">Today</p>
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1">Daily Planner</h2>

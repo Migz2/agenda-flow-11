@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useProfile } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, GraduationCap, Sparkles, BookOpen, History, Pencil, Clock, AlertTriangle, Minus } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -108,7 +109,8 @@ function generateStudyTasks(
   subject: SubjectForm,
   weeksAhead: number,
   categoryId: string | null,
-  batchId: string
+  batchId: string,
+  chronotypeStartHour?: number
 ): NewTask[] {
   const tasks: NewTask[] = [];
   const today = new Date();
@@ -123,7 +125,7 @@ function generateStudyTasks(
 
   function getNextSlot(date: Date, durationMin: number): { start: Date; end: Date } {
     const dateStr = date.toISOString().slice(0, 10);
-    const startHour = daySlots[dateStr] || 8;
+    const startHour = daySlots[dateStr] || (chronotypeStartHour ?? 8);
     const startDate = setTime(date, Math.floor(startHour), Math.round((startHour % 1) * 60));
     const endDate = new Date(startDate.getTime() + durationMin * 60000);
     daySlots[dateStr] = startHour + (durationMin + 15) / 60;
@@ -228,9 +230,13 @@ export function StudyRoutineGenerator() {
   const { addCategory } = useCustomCategories();
   const { generations, addGeneration, deleteGeneration } = useStudyGenerations();
   const { routines, addRoutine, updateRoutine, deleteRoutine, deleteFutureTasks } = useStudyRoutines();
+  const { profile } = useProfile();
   const [subjects, setSubjects] = useState<SubjectForm[]>([]);
   const [weeksAhead, setWeeksAhead] = useState(4);
   const [generating, setGenerating] = useState(false);
+  const [useChronoSchedule, setUseChronoSchedule] = useState(false);
+
+  const chronoStartHour = profile?.chronotype === "lion" ? 6 : profile?.chronotype === "wolf" ? 19 : 9;
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingRoutine, setEditingRoutine] = useState<string | null>(null);
 
@@ -294,7 +300,7 @@ export function StudyRoutineGenerator() {
       const cat = await addCategory(sub.name, sub.color);
       const catId = cat?.id || null;
 
-      const rawTasks = generateStudyTasks(sub, weeksAhead, catId, batchId);
+      const rawTasks = generateStudyTasks(sub, weeksAhead, catId, batchId, useChronoSchedule ? chronoStartHour : undefined);
       const withCollisions = detectCollisions(rawTasks, allTasks);
       collisionCount += withCollisions.filter(c => c.shifted).length;
       const finalTasks = withCollisions.map(c => c.task);
@@ -397,7 +403,7 @@ export function StudyRoutineGenerator() {
   };
 
   return (
-    <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+    <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
       <div className="mb-8">
         <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">Módulo Avançado</p>
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1 flex items-center gap-3">
@@ -697,18 +703,33 @@ export function StudyRoutineGenerator() {
             </Button>
           </div>
         ) : (
-          <Button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink py-6 text-base font-display font-semibold"
-          >
-            {generating ? "Gerando rotina..." : (
-              <>
-                <Sparkles className="w-5 h-5 mr-2" />
-                Gerar Rotina de Estudos
-              </>
+          <div className="flex flex-col gap-3">
+            {profile?.chronotype && (
+              <button
+                onClick={() => setUseChronoSchedule(!useChronoSchedule)}
+                className={`w-full py-3 rounded-2xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  useChronoSchedule ? "neu-pressed text-primary" : "neu-btn text-muted-foreground"
+                }`}
+              >
+                ✨ Auto-Agendar via Perfil
+                <span className="text-xs">
+                  ({profile.chronotype === "lion" ? "🦁 Manhã 6h" : profile.chronotype === "wolf" ? "🐺 Noite 19h" : "🐻 Tarde 9h"})
+                </span>
+              </button>
             )}
-          </Button>
+            <Button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink py-6 text-base font-display font-semibold"
+            >
+              {generating ? "Gerando rotina..." : (
+                <>
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  Gerar Rotina de Estudos
+                </>
+              )}
+            </Button>
+          </div>
         )
       )}
 

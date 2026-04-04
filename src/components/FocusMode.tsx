@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw, Timer, CheckCircle2, Coffee } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, CheckCircle2, Coffee, Lock, Infinity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTodayTasks, type DbTask } from "@/hooks/useTasks";
+import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,7 +15,12 @@ const PRESETS = [
 
 export function FocusMode() {
   const { tasks, refetch } = useTodayTasks();
+  const { profile } = useProfile();
   const pendingTasks = tasks.filter(t => !t.completed);
+
+  // Adaptive: low conscientiousness or high neuroticism = Pomodoro only
+  const canUseFlowtime = profile?.conscientiousness === "high";
+  const isFlowtime = canUseFlowtime && false; // Will be toggled
 
   const [preset, setPreset] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string>("");
@@ -22,15 +28,18 @@ export function FocusMode() {
   const [isRunning, setIsRunning] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [flowMode, setFlowMode] = useState(false);
+  const [flowSeconds, setFlowSeconds] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const totalSeconds = isBreak ? PRESETS[preset].rest * 60 : PRESETS[preset].work * 60;
-  const progress = 1 - secondsLeft / totalSeconds;
+  const progress = flowMode ? Math.min(flowSeconds / 3600, 1) : 1 - secondsLeft / totalSeconds;
 
   const resetTimer = useCallback(() => {
     setIsRunning(false);
     setIsBreak(false);
     setCompleted(false);
+    setFlowSeconds(0);
     setSecondsLeft(PRESETS[preset].work * 60);
     if (intervalRef.current) clearInterval(intervalRef.current);
   }, [preset]);
@@ -42,31 +51,38 @@ export function FocusMode() {
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          setIsRunning(false);
-          if (!isBreak) {
-            // Work session ended - auto complete task
-            handleWorkComplete();
-          } else {
-            toast({ title: "Pausa encerrada!", description: "Hora de voltar ao foco." });
-            setIsBreak(false);
-            setSecondsLeft(PRESETS[preset].work * 60);
+
+    if (flowMode && !isBreak) {
+      // Flowtime: count up
+      intervalRef.current = setInterval(() => {
+        setFlowSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      intervalRef.current = setInterval(() => {
+        setSecondsLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(intervalRef.current!);
+            setIsRunning(false);
+            if (!isBreak) handleWorkComplete();
+            else {
+              toast({ title: "Pausa encerrada!", description: "Hora de voltar ao foco." });
+              setIsBreak(false);
+              setSecondsLeft(PRESETS[preset].work * 60);
+            }
+            return 0;
           }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isRunning, isBreak]);
+  }, [isRunning, isBreak, flowMode]);
 
   const handleWorkComplete = async () => {
     setCompleted(true);
-    if (selectedTaskId) {
-      // Optimistic: mark completed in DB
+    setIsRunning(false);
+    if (selectedTaskId && selectedTaskId !== "none") {
       await supabase.from("tasks").update({ completed: true, updated_at: new Date().toISOString() } as any).eq("id", selectedTaskId);
       await refetch();
       toast({ title: "🎉 Sessão concluída!", description: "Tarefa marcada como concluída automaticamente." });
@@ -78,12 +94,13 @@ export function FocusMode() {
   const startBreak = () => {
     setIsBreak(true);
     setCompleted(false);
+    setFlowSeconds(0);
     setSecondsLeft(PRESETS[preset].rest * 60);
     setIsRunning(true);
   };
 
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = secondsLeft % 60;
+  const displayMinutes = flowMode && !isBreak ? Math.floor(flowSeconds / 60) : Math.floor(secondsLeft / 60);
+  const displaySeconds = flowMode && !isBreak ? flowSeconds % 60 : secondsLeft % 60;
 
   const circumference = 2 * Math.PI * 120;
   const strokeDashoffset = circumference * (1 - progress);
@@ -91,31 +108,50 @@ export function FocusMode() {
   const selectedTask = pendingTasks.find(t => t.id === selectedTaskId);
 
   return (
-    <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+    <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
       <div className="mb-8">
         <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">Produtividade</p>
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1 flex items-center gap-3">
           <Timer className="w-8 h-8 text-primary" />
           Modo Foco
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">Timer Pomodoro inteligente vinculado às suas tarefas</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {canUseFlowtime
+            ? "Timer adaptativo — Pomodoro ou Flowtime disponível."
+            : "Timer Pomodoro fixo — ideal para seu perfil cognitivo."}
+        </p>
       </div>
 
       <div className="max-w-md mx-auto flex flex-col items-center gap-8">
-        {/* Preset selector */}
+        {/* Mode selector */}
         <div className="flex gap-2 w-full">
           {PRESETS.map((p, i) => (
             <button
               key={i}
-              onClick={() => { setPreset(i); }}
+              onClick={() => { setPreset(i); setFlowMode(false); }}
               disabled={isRunning}
               className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                preset === i ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground"
+                preset === i && !flowMode ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground"
               } disabled:opacity-50`}
             >
               {p.label}
             </button>
           ))}
+          {canUseFlowtime ? (
+            <button
+              onClick={() => setFlowMode(true)}
+              disabled={isRunning}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1 ${
+                flowMode ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground"
+              } disabled:opacity-50`}
+            >
+              <Infinity className="w-3.5 h-3.5" /> Flowtime
+            </button>
+          ) : (
+            <div className="flex-1 py-2.5 rounded-xl text-xs font-medium neu-btn text-muted-foreground/40 flex items-center justify-center gap-1 cursor-not-allowed">
+              <Lock className="w-3 h-3" /> Flowtime
+            </div>
+          )}
         </div>
 
         {/* Task selector */}
@@ -141,7 +177,7 @@ export function FocusMode() {
             <circle cx="130" cy="130" r="120" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
             <circle
               cx="130" cy="130" r="120" fill="none"
-              stroke={isBreak ? "hsl(var(--neon-blue))" : "hsl(var(--primary))"}
+              stroke={isBreak ? "hsl(var(--neon-blue))" : flowMode ? "hsl(var(--neon-green))" : "hsl(var(--primary))"}
               strokeWidth="6"
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -151,10 +187,10 @@ export function FocusMode() {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xs text-muted-foreground mb-1">
-              {isBreak ? "☕ Pausa" : completed ? "✅ Concluído" : "🔥 Foco"}
+              {isBreak ? "☕ Pausa" : completed ? "✅ Concluído" : flowMode ? "🌊 Flow" : "🔥 Foco"}
             </span>
             <span className="text-5xl font-display font-bold text-foreground tabular-nums">
-              {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+              {String(displayMinutes).padStart(2, "0")}:{String(displaySeconds).padStart(2, "0")}
             </span>
             {selectedTask && (
               <span className="text-xs text-muted-foreground mt-2 max-w-[180px] truncate text-center">
@@ -186,17 +222,29 @@ export function FocusMode() {
           )}
         </div>
 
-        {/* Quick complete button during session */}
-        {isRunning && selectedTaskId && selectedTaskId !== "none" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <Button
-              onClick={() => { setIsRunning(false); handleWorkComplete(); }}
-              variant="outline"
-              className="neu-btn text-xs"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-              Concluir agora
-            </Button>
+        {/* Quick complete / Flow complete */}
+        {isRunning && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2">
+            {flowMode && (
+              <Button
+                onClick={handleWorkComplete}
+                variant="outline"
+                className="neu-btn text-xs"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                Finalizar Flow
+              </Button>
+            )}
+            {selectedTaskId && selectedTaskId !== "none" && !flowMode && (
+              <Button
+                onClick={() => { setIsRunning(false); handleWorkComplete(); }}
+                variant="outline"
+                className="neu-btn text-xs"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                Concluir agora
+              </Button>
+            )}
           </motion.div>
         )}
       </div>

@@ -433,7 +433,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ type: "quiz", sources: sources.map(s => ({ title: s.title, content: s.content })) }),
+        body: JSON.stringify({ type: "quiz", sources: sources.map(s => ({ title: s.title, content: s.content })), interleaving }),
       });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));

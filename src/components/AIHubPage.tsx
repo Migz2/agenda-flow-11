@@ -610,7 +610,42 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
           </div>
         )}
 
-        {activeTab === "chat" && (
+        {activeTab === "feynman" && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-card neu-flat rounded-2xl p-5">
+              <h3 className="text-sm font-display font-semibold text-foreground mb-1 flex items-center gap-2">
+                💡 Técnica Feynman
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Explique um conceito com suas próprias palavras. A IA vai avaliar a clareza e apontar lacunas.
+              </p>
+              <Textarea
+                value={feynmanInput}
+                onChange={e => setFeynmanInput(e.target.value)}
+                placeholder="Explique aqui um conceito como se estivesse ensinando a alguém..."
+                className="bg-secondary border-border/50 min-h-[120px] mb-3"
+              />
+              <Button
+                onClick={handleFeynman}
+                disabled={feynmanStreaming || !feynmanInput.trim()}
+                className="bg-primary text-primary-foreground glow-pink"
+              >
+                {feynmanStreaming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Avaliar Explicação
+              </Button>
+            </div>
+
+            {feynmanResult && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-2xl p-5 border border-border/30">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{feynmanResult}</ReactMarkdown>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
+
+
           <div className="flex flex-col gap-4 pb-4">
             <div className="flex items-center gap-3 bg-card rounded-xl p-3 border border-border/20">
               <span className="text-xs text-muted-foreground">Modo:</span>

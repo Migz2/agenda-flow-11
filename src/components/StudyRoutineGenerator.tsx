@@ -108,7 +108,8 @@ function generateStudyTasks(
   subject: SubjectForm,
   weeksAhead: number,
   categoryId: string | null,
-  batchId: string
+  batchId: string,
+  chronotypeStartHour?: number
 ): NewTask[] {
   const tasks: NewTask[] = [];
   const today = new Date();

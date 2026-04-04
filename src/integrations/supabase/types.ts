@@ -162,21 +162,30 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          chronotype: string | null
+          conscientiousness: string | null
           created_at: string
           display_name: string | null
           id: string
+          neuroticism: string | null
         }
         Insert: {
           avatar_url?: string | null
+          chronotype?: string | null
+          conscientiousness?: string | null
           created_at?: string
           display_name?: string | null
           id: string
+          neuroticism?: string | null
         }
         Update: {
           avatar_url?: string | null
+          chronotype?: string | null
+          conscientiousness?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          neuroticism?: string | null
         }
         Relationships: []
       }

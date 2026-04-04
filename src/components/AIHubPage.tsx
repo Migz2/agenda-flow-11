@@ -516,10 +516,16 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
               </div>
             )}
           </div>
-          <Button onClick={handleGenerateQuiz} disabled={generatingQuiz} size="sm" className="bg-primary text-primary-foreground glow-pink text-xs">
-            {generatingQuiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
-            Gerar Quiz
-          </Button>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={interleaving} onChange={e => setInterleaving(e.target.checked)} className="rounded" />
+              Interleaving
+            </label>
+            <Button onClick={handleGenerateQuiz} disabled={generatingQuiz} size="sm" className="bg-primary text-primary-foreground glow-pink text-xs">
+              {generatingQuiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+              Gerar Quiz
+            </Button>
+          </div>
         </div>
         <div className="flex gap-1 mt-3">
           {tabs.map(tab => (

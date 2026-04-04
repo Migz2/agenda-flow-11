@@ -403,7 +403,7 @@ export function StudyRoutineGenerator() {
   };
 
   return (
-    <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+    <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
       <div className="mb-8">
         <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">Módulo Avançado</p>
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1 flex items-center gap-3">

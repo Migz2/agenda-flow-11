@@ -645,7 +645,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
           </div>
         )}
 
-
+        {activeTab === "chat" && (
           <div className="flex flex-col gap-4 pb-4">
             <div className="flex items-center gap-3 bg-card rounded-xl p-3 border border-border/20">
               <span className="text-xs text-muted-foreground">Modo:</span>

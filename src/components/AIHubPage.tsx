@@ -475,8 +475,26 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const tabs = [
     { id: "sources", label: "Fontes", icon: FileText },
     { id: "exercises", label: "Quiz", icon: Sparkles },
+    { id: "feynman", label: "Feynman", icon: MessageCircle },
     { id: "chat", label: "Chat Tutor", icon: MessageSquare },
   ] as const;
+
+  const handleFeynman = async () => {
+    if (!feynmanInput.trim() || feynmanStreaming) return;
+    setFeynmanStreaming(true);
+    setFeynmanResult("");
+    let text = "";
+    await streamChat({
+      messages: [{ role: "user", content: feynmanInput }],
+      mode: "sources_only",
+      sources: sources.map(s => ({ title: s.title, content: s.content })),
+      type: "feynman",
+      question: feynmanInput,
+      onDelta: (chunk) => { text += chunk; setFeynmanResult(text); },
+      onDone: () => setFeynmanStreaming(false),
+      onError: () => { setFeynmanStreaming(false); setFeynmanResult("Erro ao avaliar."); },
+    });
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">

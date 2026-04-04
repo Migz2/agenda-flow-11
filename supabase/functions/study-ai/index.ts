@@ -26,20 +26,22 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mode, sources, type, question } = await req.json();
+    const { messages, mode, sources, type, question, interleaving } = await req.json();
 
-    // Build system prompt based on mode
-    let systemPrompt = "";
     const sourcesText = (sources || []).map((s: any) => `[${s.title}]: ${s.content}`).join("\n\n");
 
     if (type === "quiz") {
-      systemPrompt = `Você é um tutor especializado em gerar quizzes interativos.
+      const interleavingNote = interleaving
+        ? "\nIMPORTANTE: Misture assuntos de DIFERENTES fontes nas questões (técnica Interleaving). Não agrupe perguntas por tema."
+        : "";
+
+      const systemPrompt = `Você é um tutor especializado em gerar quizzes interativos.
 Baseie-se ESTRITAMENTE nas seguintes fontes/anotações do aluno:
 
 --- FONTES ---
 ${sourcesText}
 --- FIM DAS FONTES ---
-
+${interleavingNote}
 Gere exatamente 10 questões de múltipla escolha (A, B, C, D). Cada questão DEVE ter exatamente 4 alternativas.
 Para cada alternativa incorreta, inclua uma breve explicação de por que está errada.
 Para a alternativa correta, inclua uma explicação de por que está certa.
@@ -72,7 +74,6 @@ Todas as perguntas em português do Brasil.`;
       });
       const data = await response.json();
       let content = data.choices?.[0]?.message?.content || "";
-      // Strip markdown code fences if present
       content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       try {
         const parsed = JSON.parse(content);
@@ -83,7 +84,7 @@ Todas as perguntas em português do Brasil.`;
     }
 
     if (type === "explain") {
-      systemPrompt = `Você é um tutor de estudos. Explique detalhadamente a questão abaixo, por que a resposta correta é a certa e por que as outras estão erradas. Use linguagem clara e didática.
+      const systemPrompt = `Você é um tutor de estudos. Explique detalhadamente a questão abaixo, por que a resposta correta é a certa e por que as outras estão erradas. Use linguagem clara e didática.
 ${sourcesText ? `\nUse estas fontes como referência:\n${sourcesText}` : ""}
 Responda em português do Brasil com formatação Markdown.`;
 
@@ -98,32 +99,37 @@ Responda em português do Brasil com formatação Markdown.`;
       return new Response(response.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    if (type === "exercises") {
-      systemPrompt = `Você é um tutor especializado em gerar exercícios e questões de estudo.
-Baseie-se ESTRITAMENTE nas seguintes fontes/anotações do aluno:
+    if (type === "feynman") {
+      const systemPrompt = `Você é um avaliador especializado na Técnica Feynman. O aluno vai explicar um conceito com suas próprias palavras.
 
---- FONTES ---
-${sourcesText}
---- FIM DAS FONTES ---
+Sua tarefa:
+1. Avalie a CLAREZA da explicação (nota de 1 a 10)
+2. Identifique LACUNAS de conhecimento (conceitos que faltaram ou foram mal explicados)
+3. Sugira como MELHORAR a explicação
+4. Se disponível, compare com as fontes do aluno
 
-Gere de 5 a 8 exercícios variados (múltipla escolha, verdadeiro/falso, dissertativas curtas).
-Formate em Markdown com numeração. Inclua o gabarito ao final.
-Responda sempre em português do Brasil.`;
+${sourcesText ? `--- FONTES DO ALUNO ---\n${sourcesText}\n--- FIM ---` : ""}
+
+Responda em português do Brasil com Markdown. Use emojis para tornar a avaliação mais visual.
+Formato:
+## 📊 Nota de Clareza: X/10
+## ✅ Pontos Fortes
+## ⚠️ Lacunas Identificadas
+## 💡 Sugestões de Melhoria`;
 
       const response = await callAI({
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: "Gere exercícios baseados nas minhas anotações." },
+          { role: "user", content: question || "Avalie minha explicação." },
         ],
-        stream: false,
+        stream: true,
       });
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || "";
-      return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(response.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     // Chat mode
+    let systemPrompt: string;
     if (mode === "sources_only") {
       systemPrompt = `Você é um tutor de estudos. Responda APENAS com base nas fontes/anotações fornecidas abaixo. Se a pergunta não puder ser respondida com as fontes, diga educadamente que não há informação suficiente nas anotações.
 

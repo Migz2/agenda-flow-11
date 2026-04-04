@@ -702,19 +702,33 @@ export function StudyRoutineGenerator() {
               Cancelar
             </Button>
           </div>
-        ) : (
-          <Button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink py-6 text-base font-display font-semibold"
-          >
-            {generating ? "Gerando rotina..." : (
-              <>
-                <Sparkles className="w-5 h-5 mr-2" />
-                Gerar Rotina de Estudos
-              </>
+          <div className="flex flex-col gap-3">
+            {profile?.chronotype && (
+              <button
+                onClick={() => setUseChronoSchedule(!useChronoSchedule)}
+                className={`w-full py-3 rounded-2xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  useChronoSchedule ? "neu-pressed text-primary" : "neu-btn text-muted-foreground"
+                }`}
+              >
+                ✨ Auto-Agendar via Perfil
+                <span className="text-xs">
+                  ({profile.chronotype === "lion" ? "🦁 Manhã 6h" : profile.chronotype === "wolf" ? "🐺 Noite 19h" : "🐻 Tarde 9h"})
+                </span>
+              </button>
             )}
-          </Button>
+            <Button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink py-6 text-base font-display font-semibold"
+            >
+              {generating ? "Gerando rotina..." : (
+                <>
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  Gerar Rotina de Estudos
+                </>
+              )}
+            </Button>
+          </div>
         )
       )}
 

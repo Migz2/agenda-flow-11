@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useProfile } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, GraduationCap, Sparkles, BookOpen, History, Pencil, Clock, AlertTriangle, Minus } from "lucide-react";
 import { Input } from "@/components/ui/input";

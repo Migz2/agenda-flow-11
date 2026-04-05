@@ -9,6 +9,13 @@ export interface UserProfile {
   chronotype: string | null;
   conscientiousness: string | null;
   neuroticism: string | null;
+  puppy_name: string | null;
+  has_hatched: boolean;
+  study_coins: number;
+  puppy_hunger: number;
+  puppy_thirst: number;
+  puppy_hygiene: number;
+  last_decay_update: string | null;
 }
 
 export function useProfile() {

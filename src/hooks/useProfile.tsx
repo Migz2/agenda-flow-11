@@ -9,6 +9,13 @@ export interface UserProfile {
   chronotype: string | null;
   conscientiousness: string | null;
   neuroticism: string | null;
+  puppy_name: string | null;
+  has_hatched: boolean;
+  study_coins: number;
+  puppy_hunger: number;
+  puppy_thirst: number;
+  puppy_hygiene: number;
+  last_decay_update: string | null;
 }
 
 export function useProfile() {
@@ -29,7 +36,7 @@ export function useProfile() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const updateProfile = async (updates: Partial<Pick<UserProfile, "chronotype" | "conscientiousness" | "neuroticism" | "display_name">>) => {
+  const updateProfile = async (updates: Partial<Omit<UserProfile, "id">>) => {
     if (!user) return;
     await supabase.from("profiles").update(updates as any).eq("id", user.id);
     setProfile(prev => prev ? { ...prev, ...updates } : null);

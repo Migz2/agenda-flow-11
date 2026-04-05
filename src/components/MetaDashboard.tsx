@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Clock, CheckCircle2, Target, Flame, Sparkles, Brain, TrendingUp } from "lucide-react";
 import { useCompletedTasksHistory, useAllTasks, useCustomCategories } from "@/hooks/useTasks";
 import { useProfile } from "@/hooks/useProfile";
+import { StudyPuppy } from "@/components/StudyPuppy";
 import { useTheme } from "@/hooks/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -119,6 +120,11 @@ export function MetaDashboard() {
             Perfil: {chronoLabel} · {profile?.conscientiousness === "high" ? "Alta Disciplina" : "Disciplina Flexível"} · {profile?.neuroticism === "high" ? "Alta Sensibilidade" : "Baixa Sensibilidade"}
           </p>
         )}
+      </div>
+
+      {/* Study Puppy Habitat */}
+      <div className="mb-6">
+        <StudyPuppy />
       </div>
 
       {/* Session Wrappers */}

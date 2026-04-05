@@ -82,6 +82,18 @@ export function FocusMode() {
   const handleWorkComplete = async () => {
     setCompleted(true);
     setIsRunning(false);
+
+    // Award coins & handle hatching
+    if (profile) {
+      const coinUpdates: any = { study_coins: (profile.study_coins ?? 0) + 10 };
+      if (!profile.has_hatched) {
+        coinUpdates.has_hatched = true;
+        coinUpdates.last_decay_update = new Date().toISOString();
+      }
+      await updateProfile(coinUpdates);
+      toast({ title: "🪙 +10 Study Coins!", description: profile.has_hatched ? "Moedas adicionadas ao seu saldo." : "🎉 Seu Study Puppy nasceu! Vá ao Dashboard!" });
+    }
+
     if (selectedTaskId && selectedTaskId !== "none") {
       await supabase.from("tasks").update({ completed: true, updated_at: new Date().toISOString() } as any).eq("id", selectedTaskId);
       await refetch();

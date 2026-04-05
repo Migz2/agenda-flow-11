@@ -166,8 +166,15 @@ export type Database = {
           conscientiousness: string | null
           created_at: string
           display_name: string | null
+          has_hatched: boolean | null
           id: string
+          last_decay_update: string | null
           neuroticism: string | null
+          puppy_hunger: number | null
+          puppy_hygiene: number | null
+          puppy_name: string | null
+          puppy_thirst: number | null
+          study_coins: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -175,8 +182,15 @@ export type Database = {
           conscientiousness?: string | null
           created_at?: string
           display_name?: string | null
+          has_hatched?: boolean | null
           id: string
+          last_decay_update?: string | null
           neuroticism?: string | null
+          puppy_hunger?: number | null
+          puppy_hygiene?: number | null
+          puppy_name?: string | null
+          puppy_thirst?: number | null
+          study_coins?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -184,8 +198,15 @@ export type Database = {
           conscientiousness?: string | null
           created_at?: string
           display_name?: string | null
+          has_hatched?: boolean | null
           id?: string
+          last_decay_update?: string | null
           neuroticism?: string | null
+          puppy_hunger?: number | null
+          puppy_hygiene?: number | null
+          puppy_name?: string | null
+          puppy_thirst?: number | null
+          study_coins?: number | null
         }
         Relationships: []
       }

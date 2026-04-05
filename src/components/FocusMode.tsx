@@ -15,7 +15,7 @@ const PRESETS = [
 
 export function FocusMode() {
   const { tasks, refetch } = useTodayTasks();
-  const { profile } = useProfile();
+  const { profile, updateProfile } = useProfile();
   const pendingTasks = tasks.filter(t => !t.completed);
 
   // Adaptive: low conscientiousness or high neuroticism = Pomodoro only

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Clock, CheckCircle2, Target, Flame, Sparkles, Brain, TrendingUp } from "lucide-react";
 import { useCompletedTasksHistory, useAllTasks, useCustomCategories } from "@/hooks/useTasks";
 import { useProfile } from "@/hooks/useProfile";
+import { StudyPuppy } from "@/components/StudyPuppy";
 import { useTheme } from "@/hooks/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

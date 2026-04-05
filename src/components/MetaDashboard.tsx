@@ -122,6 +122,11 @@ export function MetaDashboard() {
         )}
       </div>
 
+      {/* Study Puppy Habitat */}
+      <div className="mb-6">
+        <StudyPuppy />
+      </div>
+
       {/* Session Wrappers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card neu-flat rounded-2xl p-5">

@@ -36,7 +36,7 @@ export function useProfile() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const updateProfile = async (updates: Partial<Pick<UserProfile, "chronotype" | "conscientiousness" | "neuroticism" | "display_name">>) => {
+  const updateProfile = async (updates: Partial<Omit<UserProfile, "id">>) => {
     if (!user) return;
     await supabase.from("profiles").update(updates as any).eq("id", user.id);
     setProfile(prev => prev ? { ...prev, ...updates } : null);

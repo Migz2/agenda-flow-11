@@ -6,7 +6,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import ReactPlayer from "react-player/youtube";
+import ReactPlayer from "react-player";
 
 const DECAY_RATE = 3;
 

@@ -255,7 +255,7 @@ export function StudyPuppy() {
                     controls={false}
                     config={{
                       youtube: {
-                        playerVars: {
+                        embedOptions: {
                           modestbranding: 1,
                           rel: 0,
                           showinfo: 0,

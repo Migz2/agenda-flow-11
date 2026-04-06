@@ -1,13 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Droplets, Drumstick, Sparkles, Coins } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Coins } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useProfile } from "@/hooks/useProfile";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import ReactPlayer from "react-player/youtube";
 
-const DECAY_RATE = 3; // 3% per hour
+const DECAY_RATE = 3;
+
+const VIDEO_URLS = {
+  idle: "https://youtu.be/BzQVAP3S-sM",
+  eating: "https://youtu.be/Pi69l2pL4Oc",
+  drinking: "https://youtu.be/YXziYVcGpp0",
+};
 
 function applyDecay(profile: NonNullable<ReturnType<typeof useProfile>["profile"]>) {
   if (!profile.last_decay_update) return { hunger: profile.puppy_hunger, thirst: profile.puppy_thirst, hygiene: profile.puppy_hygiene, hours: 0 };
@@ -23,15 +30,67 @@ function applyDecay(profile: NonNullable<ReturnType<typeof useProfile>["profile"
   };
 }
 
-function PuppySprite({ isSad }: { isSad: boolean }) {
+// Deterministic grass tile colors
+const TILE_COLORS = Array.from({ length: 64 }, (_, i) => {
+  const hue = 100 + (i * 7) % 30;
+  const sat = 45 + (i * 13) % 25;
+  const light = 32 + (i * 11) % 18;
+  return `hsl(${hue}, ${sat}%, ${light}%)`;
+});
+
+function IsometricGround() {
   return (
-    <motion.div
-      animate={isSad ? { y: [0, 2, 0], rotate: [-2, 2, -2] } : { y: [0, -6, 0] }}
-      transition={{ duration: isSad ? 1.5 : 2, repeat: Infinity, ease: "easeInOut" }}
-      className="text-7xl select-none"
-    >
-      {isSad ? "🐶" : "🐕"}
-    </motion.div>
+    <div className="relative flex items-center justify-center" style={{ perspective: "600px" }}>
+      <div
+        className="relative"
+        style={{
+          width: 220,
+          height: 220,
+          transform: "rotateX(60deg) rotateZ(-45deg)",
+          transformStyle: "preserve-3d",
+        }}
+      >
+        {/* Top grass surface */}
+        <div className="absolute inset-0 grid grid-cols-8 grid-rows-8 gap-[1px] rounded-lg overflow-hidden">
+          {TILE_COLORS.map((color, i) => (
+            <div
+              key={i}
+              className="rounded-[2px]"
+              style={{
+                backgroundColor: color,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)",
+              }}
+            />
+          ))}
+        </div>
+        {/* Side panels for 3D effect */}
+        <div
+          className="absolute left-0 bottom-0 w-full"
+          style={{
+            height: 30,
+            transform: "rotateX(-90deg) translateZ(0px)",
+            transformOrigin: "bottom",
+            background: "linear-gradient(180deg, hsl(30, 40%, 28%), hsl(25, 35%, 20%))",
+            borderRadius: "0 0 4px 4px",
+          }}
+        />
+        <div
+          className="absolute right-0 top-0 h-full"
+          style={{
+            width: 30,
+            transform: "rotateY(90deg) translateZ(0px)",
+            transformOrigin: "right",
+            background: "linear-gradient(90deg, hsl(30, 35%, 25%), hsl(25, 30%, 18%))",
+            borderRadius: "0 4px 4px 0",
+          }}
+        />
+        {/* Small decorative elements */}
+        <div className="absolute" style={{ top: "10%", left: "15%", fontSize: 14, transform: "rotateZ(45deg) rotateX(-60deg)" }}>🌳</div>
+        <div className="absolute" style={{ top: "70%", left: "75%", fontSize: 12, transform: "rotateZ(45deg) rotateX(-60deg)" }}>🌿</div>
+        <div className="absolute" style={{ top: "20%", left: "70%", fontSize: 10, transform: "rotateZ(45deg) rotateX(-60deg)" }}>🌸</div>
+        <div className="absolute" style={{ top: "65%", left: "20%", fontSize: 12, transform: "rotateZ(45deg) rotateX(-60deg)" }}>🌻</div>
+      </div>
+    </div>
   );
 }
 
@@ -76,6 +135,7 @@ export function StudyPuppy() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [namingMode, setNamingMode] = useState(false);
   const [puppyNameInput, setPuppyNameInput] = useState("");
+  const [videoState, setVideoState] = useState<"idle" | "eating" | "drinking">("idle");
 
   // Decay on mount
   useEffect(() => {
@@ -98,11 +158,11 @@ export function StudyPuppy() {
       return;
     }
     const updates: any = { study_coins: profile.study_coins - cost };
-    if (type === "hunger") updates.puppy_hunger = 100;
-    if (type === "thirst") updates.puppy_thirst = 100;
+    if (type === "hunger") { updates.puppy_hunger = 100; setVideoState("eating"); }
+    if (type === "thirst") { updates.puppy_thirst = 100; setVideoState("drinking"); }
     if (type === "hygiene") updates.puppy_hygiene = 100;
     await updateProfile(updates);
-    toast({ title: "Cuidado realizado! 🐾", description: `Seu puppy está mais feliz!` });
+    toast({ title: "Cuidado realizado! 🐾", description: "Seu puppy está mais feliz!" });
   }, [profile, updateProfile]);
 
   const handleSetName = async () => {
@@ -117,31 +177,35 @@ export function StudyPuppy() {
   const isSad = hunger < 30 || thirst < 30 || hygiene < 30;
   const hasHatched = profile.has_hatched;
   const puppyName = profile.puppy_name || "Seu Puppy";
+  const hasSetName = !!profile.puppy_name && profile.puppy_name.trim() !== "";
+
+  const currentVideoUrl = VIDEO_URLS[videoState];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative rounded-2xl overflow-hidden neu-flat"
-      style={{
-        background: "linear-gradient(180deg, #8BC34A 0%, #6B9B37 30%, #5D4037 60%, #4E342E 100%)",
-        minHeight: 280,
-      }}
+      className="relative rounded-2xl overflow-hidden neu-flat border border-border/20"
+      style={{ minHeight: 340 }}
     >
       {/* Coins HUD */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-black/30 backdrop-blur-sm rounded-full px-3 py-1.5">
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
         <Coins className="w-4 h-4 text-yellow-400" />
         <span className="text-sm font-bold text-white tabular-nums">{profile.study_coins}</span>
       </div>
 
       {showConfetti && <ConfettiOverlay onDone={() => setShowConfetti(false)} />}
 
-      {/* Main area */}
-      <div className="flex flex-col items-center justify-center pt-6 pb-2 relative z-10">
+      {/* Habitat area */}
+      <div className="relative bg-gradient-to-b from-sky-300 via-sky-200 to-emerald-100 dark:from-sky-900 dark:via-sky-800 dark:to-emerald-900 pt-4 pb-6">
         {/* Name */}
         {hasHatched && (
-          <div className="mb-2">
-            {namingMode ? (
+          <div className="flex justify-center mb-3 relative z-10">
+            {hasSetName ? (
+              <span className="text-white font-display font-bold text-sm bg-black/20 backdrop-blur-sm rounded-full px-3 py-0.5">
+                {puppyName}
+              </span>
+            ) : namingMode ? (
               <div className="flex gap-1.5 items-center">
                 <Input
                   value={puppyNameInput}
@@ -156,32 +220,68 @@ export function StudyPuppy() {
               </div>
             ) : (
               <button
-                onClick={() => { setPuppyNameInput(profile.puppy_name || ""); setNamingMode(true); }}
+                onClick={() => { setPuppyNameInput(""); setNamingMode(true); }}
                 className="text-white font-display font-bold text-sm bg-black/20 backdrop-blur-sm rounded-full px-3 py-0.5 hover:bg-black/30 transition-colors"
               >
-                {puppyName}
+                ✏️ Dê um nome
               </button>
             )}
           </div>
         )}
 
-        {/* Character */}
-        <div className="h-24 flex items-center justify-center">
-          <AnimatePresence mode="wait">
-            {hasHatched ? (
-              <motion.div key="puppy" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
-                <PuppySprite isSad={isSad} />
-              </motion.div>
-            ) : (
-              <motion.div key="box" initial={{ scale: 0.8 }} animate={{ scale: 1 }}>
-                <ShakingBox />
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* Isometric ground + character */}
+        <div className="relative flex flex-col items-center">
+          <IsometricGround />
+
+          {/* Character overlay */}
+          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ marginTop: "-20px" }}>
+            <AnimatePresence mode="wait">
+              {hasHatched ? (
+                <motion.div
+                  key="video"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring" }}
+                  className="rounded-xl overflow-hidden shadow-lg"
+                  style={{ width: 140, height: 140 }}
+                >
+                  <ReactPlayer
+                    url={currentVideoUrl}
+                    playing
+                    loop={videoState === "idle"}
+                    muted
+                    width="100%"
+                    height="100%"
+                    controls={false}
+                    config={{
+                      youtube: {
+                        playerVars: {
+                          modestbranding: 1,
+                          rel: 0,
+                          showinfo: 0,
+                          controls: 0,
+                          disablekb: 1,
+                          iv_load_policy: 3,
+                        },
+                      },
+                    }}
+                    onEnded={() => {
+                      if (videoState !== "idle") setVideoState("idle");
+                    }}
+                    style={{ pointerEvents: "none" }}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div key="box" initial={{ scale: 0.8 }} animate={{ scale: 1 }}>
+                  <ShakingBox />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {!hasHatched && (
-          <p className="text-white/80 text-xs font-body mt-2 text-center px-4">
+          <p className="text-center text-white/80 text-xs font-body mt-2 px-4 relative z-10">
             Complete 1 ciclo no Modo Foco para chocar seu Study Puppy!
           </p>
         )}
@@ -189,15 +289,13 @@ export function StudyPuppy() {
 
       {/* Stats & Care Buttons */}
       {hasHatched && (
-        <div className="px-4 pb-4 relative z-10">
-          {/* Bars */}
-          <div className="space-y-1.5 mb-3">
+        <div className="px-4 py-4 bg-card">
+          <div className="space-y-2 mb-3">
             <StatBar label="🍗 Fome" value={hunger} color="hsl(var(--neon-orange))" />
             <StatBar label="💧 Sede" value={thirst} color="hsl(var(--neon-blue))" />
             <StatBar label="🧼 Higiene" value={hygiene} color="hsl(var(--neon-green))" />
           </div>
 
-          {/* Care buttons */}
           <div className="grid grid-cols-3 gap-2">
             <CareButton emoji="🍗" label="Alimentar" cost={5} onClick={() => handleCare("hunger", 5)} disabled={hunger >= 100} />
             <CareButton emoji="💧" label="Água" cost={2} onClick={() => handleCare("thirst", 2)} disabled={thirst >= 100} />
@@ -212,8 +310,8 @@ export function StudyPuppy() {
 function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-white/80 w-16 shrink-0">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-black/30 overflow-hidden">
+      <span className="text-xs text-muted-foreground w-16 shrink-0">{label}</span>
+      <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
         <motion.div
           className="h-full rounded-full"
           style={{ backgroundColor: color }}
@@ -222,7 +320,7 @@ function StatBar({ label, value, color }: { label: string; value: number; color:
           transition={{ duration: 0.5 }}
         />
       </div>
-      <span className="text-xs text-white/70 w-8 text-right tabular-nums">{Math.round(value)}%</span>
+      <span className="text-xs text-muted-foreground w-8 text-right tabular-nums">{Math.round(value)}%</span>
     </div>
   );
 }
@@ -232,11 +330,11 @@ function CareButton({ emoji, label, cost, onClick, disabled }: { emoji: string; 
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-white/15 backdrop-blur-sm hover:bg-white/25 active:bg-white/10 transition-all text-white disabled:opacity-40 disabled:cursor-not-allowed"
+      className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl neu-btn hover:bg-secondary active:bg-muted transition-all text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
     >
       <span className="text-lg">{emoji}</span>
       <span className="text-[10px] font-medium">{label}</span>
-      <span className="text-[9px] opacity-70 flex items-center gap-0.5">
+      <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
         <Coins className="w-2.5 h-2.5" /> {cost}
       </span>
     </button>

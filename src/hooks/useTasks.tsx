@@ -295,13 +295,17 @@ export function useCustomCategories() {
   };
 
   const deleteCategory = async (id: string) => {
-    // Unlink tasks from this category (set null)
     await supabase.from("tasks").update({ custom_category_id: null, updated_at: new Date().toISOString() } as any).eq("custom_category_id", id);
     await supabase.from("custom_categories").delete().eq("id", id);
     await fetchCategories();
   };
 
-  return { categories, addCategory, deleteCategory, refetch: fetchCategories };
+  const updateCategory = async (id: string, name: string, color: string) => {
+    await supabase.from("custom_categories").update({ name, color } as any).eq("id", id);
+    await fetchCategories();
+  };
+
+  return { categories, addCategory, deleteCategory, updateCategory, refetch: fetchCategories };
 }
 
 export function useStudyGenerations() {

@@ -246,20 +246,13 @@ export function StudyPuppy() {
                   style={{ width: 140, height: 140 }}
                 >
                   <ReactPlayer
-                    url={currentVideoUrl}
+                    src={currentVideoUrl}
                     playing
                     loop={videoState === "idle"}
                     muted
                     width="100%"
                     height="100%"
                     controls={false}
-                    config={{
-                      youtube: {
-                        disablekb: 1,
-                        iv_load_policy: 3,
-                        rel: 0,
-                      },
-                    }}
                     onEnded={() => {
                       if (videoState !== "idle") setVideoState("idle");
                     }}

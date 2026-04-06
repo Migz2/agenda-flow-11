@@ -1,122 +1,75 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw, Timer, CheckCircle2, Coffee, Lock, Infinity } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { Play, Pause, RotateCcw, Timer, CheckCircle2, Coffee, Lock, Infinity, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTodayTasks, type DbTask } from "@/hooks/useTasks";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useFocusTimer, PRESETS } from "@/hooks/useFocusTimer";
 
-const PRESETS = [
-  { label: "25/5 (Clássico)", work: 25, rest: 5 },
-  { label: "50/10 (Deep Work)", work: 50, rest: 10 },
-];
+interface FocusModeProps {
+  onOpenNotes?: (task: DbTask) => void;
+}
 
-export function FocusMode() {
+export function FocusMode({ onOpenNotes }: FocusModeProps) {
   const { tasks, refetch } = useTodayTasks();
   const { profile, updateProfile } = useProfile();
   const pendingTasks = tasks.filter(t => !t.completed);
-
-  // Adaptive: low conscientiousness or high neuroticism = Pomodoro only
   const canUseFlowtime = profile?.conscientiousness === "high";
-  const isFlowtime = canUseFlowtime && false; // Will be toggled
+  const handledRef = useRef(false);
 
-  const [preset, setPreset] = useState(0);
-  const [selectedTaskId, setSelectedTaskId] = useState<string>("");
-  const [secondsLeft, setSecondsLeft] = useState(PRESETS[0].work * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isBreak, setIsBreak] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [flowMode, setFlowMode] = useState(false);
-  const [flowSeconds, setFlowSeconds] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timer = useFocusTimer();
 
-  const totalSeconds = isBreak ? PRESETS[preset].rest * 60 : PRESETS[preset].work * 60;
-  const progress = flowMode ? Math.min(flowSeconds / 3600, 1) : 1 - secondsLeft / totalSeconds;
+  const {
+    isRunning, secondsLeft, flowSeconds, preset, flowMode, isBreak,
+    completed, selectedTaskId, totalSeconds, progress, justFinished, breakJustFinished,
+    start, pause, reset, changePreset, changeFlowMode, changeSelectedTask,
+    markCompleted, startBreak, clearFinished, clearBreakFinished,
+  } = timer;
 
-  const resetTimer = useCallback(() => {
-    setIsRunning(false);
-    setIsBreak(false);
-    setCompleted(false);
-    setFlowSeconds(0);
-    setSecondsLeft(PRESETS[preset].work * 60);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-  }, [preset]);
-
-  useEffect(() => { resetTimer(); }, [preset, resetTimer]);
-
+  // Handle work completion side effects
   useEffect(() => {
-    if (!isRunning) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      return;
-    }
+    if (!justFinished || handledRef.current) return;
+    handledRef.current = true;
 
-    if (flowMode && !isBreak) {
-      // Flowtime: count up
-      intervalRef.current = setInterval(() => {
-        setFlowSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      intervalRef.current = setInterval(() => {
-        setSecondsLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current!);
-            setIsRunning(false);
-            if (!isBreak) handleWorkComplete();
-            else {
-              toast({ title: "Pausa encerrada!", description: "Hora de voltar ao foco." });
-              setIsBreak(false);
-              setSecondsLeft(PRESETS[preset].work * 60);
-            }
-            return 0;
-          }
-          return prev - 1;
+    (async () => {
+      if (profile) {
+        const coinUpdates: any = { study_coins: (profile.study_coins ?? 0) + 10 };
+        if (!profile.has_hatched) {
+          coinUpdates.has_hatched = true;
+          coinUpdates.last_decay_update = new Date().toISOString();
+        }
+        await updateProfile(coinUpdates);
+        toast({
+          title: "🪙 +10 Study Coins!",
+          description: profile.has_hatched ? "Moedas adicionadas ao seu saldo." : "🎉 Seu Study Puppy nasceu! Vá ao Dashboard!",
         });
-      }, 1000);
-    }
-
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isRunning, isBreak, flowMode]);
-
-  const handleWorkComplete = async () => {
-    setCompleted(true);
-    setIsRunning(false);
-
-    // Award coins & handle hatching
-    if (profile) {
-      const coinUpdates: any = { study_coins: (profile.study_coins ?? 0) + 10 };
-      if (!profile.has_hatched) {
-        coinUpdates.has_hatched = true;
-        coinUpdates.last_decay_update = new Date().toISOString();
       }
-      await updateProfile(coinUpdates);
-      toast({ title: "🪙 +10 Study Coins!", description: profile.has_hatched ? "Moedas adicionadas ao seu saldo." : "🎉 Seu Study Puppy nasceu! Vá ao Dashboard!" });
-    }
+      if (selectedTaskId && selectedTaskId !== "none") {
+        await supabase.from("tasks").update({ completed: true, updated_at: new Date().toISOString() } as any).eq("id", selectedTaskId);
+        await refetch();
+        toast({ title: "🎉 Sessão concluída!", description: "Tarefa marcada como concluída automaticamente." });
+      } else {
+        toast({ title: "🎉 Sessão concluída!", description: "Bom trabalho! Descanse um pouco." });
+      }
+      clearFinished();
+      handledRef.current = false;
+    })();
+  }, [justFinished]);
 
-    if (selectedTaskId && selectedTaskId !== "none") {
-      await supabase.from("tasks").update({ completed: true, updated_at: new Date().toISOString() } as any).eq("id", selectedTaskId);
-      await refetch();
-      toast({ title: "🎉 Sessão concluída!", description: "Tarefa marcada como concluída automaticamente." });
-    } else {
-      toast({ title: "🎉 Sessão concluída!", description: "Bom trabalho! Descanse um pouco." });
-    }
-  };
-
-  const startBreak = () => {
-    setIsBreak(true);
-    setCompleted(false);
-    setFlowSeconds(0);
-    setSecondsLeft(PRESETS[preset].rest * 60);
-    setIsRunning(true);
-  };
+  // Handle break finished
+  useEffect(() => {
+    if (!breakJustFinished) return;
+    toast({ title: "Pausa encerrada!", description: "Hora de voltar ao foco." });
+    clearBreakFinished();
+  }, [breakJustFinished]);
 
   const displayMinutes = flowMode && !isBreak ? Math.floor(flowSeconds / 60) : Math.floor(secondsLeft / 60);
   const displaySeconds = flowMode && !isBreak ? flowSeconds % 60 : secondsLeft % 60;
-
   const circumference = 2 * Math.PI * 120;
   const strokeDashoffset = circumference * (1 - progress);
-
   const selectedTask = pendingTasks.find(t => t.id === selectedTaskId);
 
   return (
@@ -140,7 +93,7 @@ export function FocusMode() {
           {PRESETS.map((p, i) => (
             <button
               key={i}
-              onClick={() => { setPreset(i); setFlowMode(false); }}
+              onClick={() => changePreset(i)}
               disabled={isRunning}
               className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all ${
                 preset === i && !flowMode ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground"
@@ -151,7 +104,7 @@ export function FocusMode() {
           ))}
           {canUseFlowtime ? (
             <button
-              onClick={() => setFlowMode(true)}
+              onClick={() => changeFlowMode(true)}
               disabled={isRunning}
               className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1 ${
                 flowMode ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground"
@@ -168,7 +121,7 @@ export function FocusMode() {
 
         {/* Task selector */}
         <div className="w-full">
-          <Select value={selectedTaskId} onValueChange={setSelectedTaskId} disabled={isRunning}>
+          <Select value={selectedTaskId} onValueChange={changeSelectedTask} disabled={isRunning}>
             <SelectTrigger className="bg-secondary border-border/50 neu-flat">
               <SelectValue placeholder="Vincular a uma tarefa (opcional)" />
             </SelectTrigger>
@@ -221,44 +174,44 @@ export function FocusMode() {
           ) : (
             <>
               <Button
-                onClick={() => setIsRunning(!isRunning)}
+                onClick={() => isRunning ? pause() : start()}
                 className={`neu-raised px-6 ${isRunning ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground glow-pink"}`}
               >
                 {isRunning ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
                 {isRunning ? "Pausar" : "Iniciar"}
               </Button>
-              <Button onClick={resetTimer} variant="outline" className="neu-btn">
+              <Button onClick={reset} variant="outline" className="neu-btn">
                 <RotateCcw className="w-4 h-4" />
               </Button>
             </>
           )}
         </div>
 
-        {/* Quick complete / Flow complete */}
-        {isRunning && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2">
-            {flowMode && (
-              <Button
-                onClick={handleWorkComplete}
-                variant="outline"
-                className="neu-btn text-xs"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                Finalizar Flow
+        {/* Quick actions */}
+        <div className="flex gap-2 flex-wrap justify-center">
+          {isRunning && flowMode && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Button onClick={markCompleted} variant="outline" className="neu-btn text-xs">
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Finalizar Flow
               </Button>
-            )}
-            {selectedTaskId && selectedTaskId !== "none" && !flowMode && (
-              <Button
-                onClick={() => { setIsRunning(false); handleWorkComplete(); }}
-                variant="outline"
-                className="neu-btn text-xs"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                Concluir agora
+            </motion.div>
+          )}
+          {isRunning && selectedTaskId && selectedTaskId !== "none" && !flowMode && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Button onClick={markCompleted} variant="outline" className="neu-btn text-xs">
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Concluir agora
               </Button>
-            )}
-          </motion.div>
-        )}
+            </motion.div>
+          )}
+          {/* Open Notes button */}
+          {selectedTask && onOpenNotes && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Button onClick={() => onOpenNotes(selectedTask)} variant="outline" className="neu-btn text-xs">
+                <StickyNote className="w-3.5 h-3.5 mr-1.5" /> Abrir Anotações
+              </Button>
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );

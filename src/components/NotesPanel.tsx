@@ -56,12 +56,17 @@ export function NotesPanel({ task, onClose, onEdit, onToggleComplete }: NotesPan
 
   const saveDescription = useCallback(async (taskId: string, html: string) => {
     setSaveStatus("saving");
-    await supabase
+    const { error } = await supabase
       .from("tasks")
-      .update({ description: html, updated_at: new Date().toISOString() } as any)
+      .update({ description: html, updated_at: new Date().toISOString() })
       .eq("id", taskId);
-    setSaveStatus("saved");
-    setTimeout(() => setSaveStatus(prev => prev === "saved" ? "idle" : prev), 2000);
+    if (error) {
+      console.error("NotesPanel save error:", error);
+      setSaveStatus("idle");
+    } else {
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus(prev => prev === "saved" ? "idle" : prev), 2000);
+    }
   }, []);
 
   const handleDescriptionChange = useCallback((html: string) => {

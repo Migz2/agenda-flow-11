@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BarChart3, LayoutList, CheckSquare, Calendar, Brain, BookOpen, Sun, Moon, LogOut, Timer, GraduationCap } from "lucide-react";
+import { BarChart3, LayoutList, CheckSquare, Calendar, Brain, BookOpen, Sun, Moon, LogOut, Timer, GraduationCap, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,6 +19,7 @@ const navItems = [
   { id: "aihub", label: "AI Hub", icon: Brain },
   { id: "focus", label: "Foco", icon: Timer },
   { id: "library", label: "Library", icon: BookOpen },
+  { id: "profile", label: "Perfil", icon: User },
 ];
 
 export function FloatingTopBar({ currentPage, onNavigate }: FloatingTopBarProps) {

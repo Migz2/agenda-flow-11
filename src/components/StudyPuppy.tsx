@@ -1,20 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Coins } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { useProfile } from "@/hooks/useProfile";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import ReactPlayer from "react-player";
+
+import puppyIdleGif from "@/assets/puppy-idle.gif";
+import puppyEatingGif from "@/assets/puppy-eating.gif";
 
 const DECAY_RATE = 3;
-
-const VIDEO_URLS = {
-  idle: "https://youtu.be/BzQVAP3S-sM",
-  eating: "https://youtu.be/Pi69l2pL4Oc",
-  drinking: "https://youtu.be/YXziYVcGpp0",
-};
 
 function applyDecay(profile: NonNullable<ReturnType<typeof useProfile>["profile"]>) {
   if (!profile.last_decay_update) return { hunger: profile.puppy_hunger, thirst: profile.puppy_thirst, hygiene: profile.puppy_hygiene, hours: 0 };
@@ -30,7 +25,7 @@ function applyDecay(profile: NonNullable<ReturnType<typeof useProfile>["profile"
   };
 }
 
-// Deterministic grass tile colors
+// Deterministic grass tile colors for isometric ground
 const TILE_COLORS = Array.from({ length: 64 }, (_, i) => {
   const hue = 100 + (i * 7) % 30;
   const sat = 45 + (i * 13) % 25;
@@ -44,47 +39,25 @@ function IsometricGround() {
       <div
         className="relative"
         style={{
-          width: 220,
-          height: 220,
+          width: 240,
+          height: 240,
           transform: "rotateX(60deg) rotateZ(-45deg)",
           transformStyle: "preserve-3d",
         }}
       >
-        {/* Top grass surface */}
         <div className="absolute inset-0 grid grid-cols-8 grid-rows-8 gap-[1px] rounded-lg overflow-hidden">
           {TILE_COLORS.map((color, i) => (
             <div
               key={i}
               className="rounded-[2px]"
-              style={{
-                backgroundColor: color,
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)",
-              }}
+              style={{ backgroundColor: color, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}
             />
           ))}
         </div>
-        {/* Side panels for 3D effect */}
-        <div
-          className="absolute left-0 bottom-0 w-full"
-          style={{
-            height: 30,
-            transform: "rotateX(-90deg) translateZ(0px)",
-            transformOrigin: "bottom",
-            background: "linear-gradient(180deg, hsl(30, 40%, 28%), hsl(25, 35%, 20%))",
-            borderRadius: "0 0 4px 4px",
-          }}
-        />
-        <div
-          className="absolute right-0 top-0 h-full"
-          style={{
-            width: 30,
-            transform: "rotateY(90deg) translateZ(0px)",
-            transformOrigin: "right",
-            background: "linear-gradient(90deg, hsl(30, 35%, 25%), hsl(25, 30%, 18%))",
-            borderRadius: "0 4px 4px 0",
-          }}
-        />
-        {/* Small decorative elements */}
+        {/* 3D side panels */}
+        <div className="absolute left-0 bottom-0 w-full" style={{ height: 30, transform: "rotateX(-90deg)", transformOrigin: "bottom", background: "linear-gradient(180deg, hsl(30, 40%, 28%), hsl(25, 35%, 20%))", borderRadius: "0 0 4px 4px" }} />
+        <div className="absolute right-0 top-0 h-full" style={{ width: 30, transform: "rotateY(90deg)", transformOrigin: "right", background: "linear-gradient(90deg, hsl(30, 35%, 25%), hsl(25, 30%, 18%))", borderRadius: "0 4px 4px 0" }} />
+        {/* Decorations */}
         <div className="absolute" style={{ top: "10%", left: "15%", fontSize: 14, transform: "rotateZ(45deg) rotateX(-60deg)" }}>🌳</div>
         <div className="absolute" style={{ top: "70%", left: "75%", fontSize: 12, transform: "rotateZ(45deg) rotateX(-60deg)" }}>🌿</div>
         <div className="absolute" style={{ top: "20%", left: "70%", fontSize: 10, transform: "rotateZ(45deg) rotateX(-60deg)" }}>🌸</div>
@@ -135,7 +108,7 @@ export function StudyPuppy() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [namingMode, setNamingMode] = useState(false);
   const [puppyNameInput, setPuppyNameInput] = useState("");
-  const [videoState, setVideoState] = useState<"idle" | "eating" | "drinking">("idle");
+  const [activeGif, setActiveGif] = useState<"idle" | "eating" | "drinking">("idle");
 
   // Decay on mount
   useEffect(() => {
@@ -151,6 +124,14 @@ export function StudyPuppy() {
     }
   }, [profile?.last_decay_update]);
 
+  // Return to idle after action GIF plays
+  useEffect(() => {
+    if (activeGif === "idle") return;
+    const duration = activeGif === "eating" ? 3000 : 2500;
+    const t = setTimeout(() => setActiveGif("idle"), duration);
+    return () => clearTimeout(t);
+  }, [activeGif]);
+
   const handleCare = useCallback(async (type: "hunger" | "thirst" | "hygiene", cost: number) => {
     if (!profile) return;
     if (profile.study_coins < cost) {
@@ -158,8 +139,8 @@ export function StudyPuppy() {
       return;
     }
     const updates: any = { study_coins: profile.study_coins - cost };
-    if (type === "hunger") { updates.puppy_hunger = 100; setVideoState("eating"); }
-    if (type === "thirst") { updates.puppy_thirst = 100; setVideoState("drinking"); }
+    if (type === "hunger") { updates.puppy_hunger = 100; setActiveGif("eating"); }
+    if (type === "thirst") { updates.puppy_thirst = 100; setActiveGif("drinking"); }
     if (type === "hygiene") updates.puppy_hygiene = 100;
     await updateProfile(updates);
     toast({ title: "Cuidado realizado! 🐾", description: "Seu puppy está mais feliz!" });
@@ -174,12 +155,12 @@ export function StudyPuppy() {
   if (loading || !profile) return null;
 
   const { hunger, thirst, hygiene } = applyDecay(profile);
-  const isSad = hunger < 30 || thirst < 30 || hygiene < 30;
   const hasHatched = profile.has_hatched;
   const puppyName = profile.puppy_name || "Seu Puppy";
   const hasSetName = !!profile.puppy_name && profile.puppy_name.trim() !== "";
 
-  const currentVideoUrl = VIDEO_URLS[videoState];
+  // Pick the right GIF — eating gif doubles as drinking for now (only 2 GIFs provided)
+  const currentGif = activeGif === "idle" ? puppyIdleGif : puppyEatingGif;
 
   return (
     <motion.div
@@ -196,8 +177,13 @@ export function StudyPuppy() {
 
       {showConfetti && <ConfettiOverlay onDone={() => setShowConfetti(false)} />}
 
-      {/* Habitat area */}
-      <div className="relative bg-gradient-to-b from-sky-300 via-sky-200 to-emerald-100 dark:from-sky-900 dark:via-sky-800 dark:to-emerald-900 pt-4 pb-6">
+      {/* Habitat area — fixed background, doesn't change with theme */}
+      <div
+        className="relative pt-4 pb-6"
+        style={{
+          background: "linear-gradient(180deg, #87CEEB 0%, #A8D8EA 30%, #90C67C 60%, #6B8E5A 100%)",
+        }}
+      >
         {/* Name */}
         {hasHatched && (
           <div className="flex justify-center mb-3 relative z-10">
@@ -233,30 +219,23 @@ export function StudyPuppy() {
         <div className="relative flex flex-col items-center">
           <IsometricGround />
 
-          {/* Character overlay */}
-          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ marginTop: "-20px" }}>
+          {/* Character overlay — positioned so paws touch the ground */}
+          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ marginTop: "-30px" }}>
             <AnimatePresence mode="wait">
               {hasHatched ? (
                 <motion.div
-                  key="video"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring" }}
-                  className="rounded-xl overflow-hidden shadow-lg"
-                  style={{ width: 140, height: 140 }}
+                  key={activeGif}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ type: "spring", duration: 0.4 }}
                 >
-                  <ReactPlayer
-                    src={currentVideoUrl}
-                    playing
-                    loop={videoState === "idle"}
-                    muted
-                    width="100%"
-                    height="100%"
-                    controls={false}
-                    onEnded={() => {
-                      if (videoState !== "idle") setVideoState("idle");
-                    }}
-                    style={{ pointerEvents: "none" }}
+                  <img
+                    src={currentGif}
+                    alt="Study Puppy"
+                    className="drop-shadow-lg"
+                    style={{ width: 130, height: 130, objectFit: "contain", imageRendering: "auto" }}
+                    draggable={false}
                   />
                 </motion.div>
               ) : (
@@ -279,9 +258,9 @@ export function StudyPuppy() {
       {hasHatched && (
         <div className="px-4 py-4 bg-card">
           <div className="space-y-2 mb-3">
-            <StatBar label="🍗 Fome" value={hunger} color="hsl(var(--neon-orange))" />
-            <StatBar label="💧 Sede" value={thirst} color="hsl(var(--neon-blue))" />
-            <StatBar label="🧼 Higiene" value={hygiene} color="hsl(var(--neon-green))" />
+            <StatBar label="🍗 Fome" value={hunger} />
+            <StatBar label="💧 Sede" value={thirst} />
+            <StatBar label="🧼 Higiene" value={hygiene} />
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -295,14 +274,14 @@ export function StudyPuppy() {
   );
 }
 
-function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
+function StatBar({ label, value }: { label: string; value: number }) {
+  const barColor = value < 30 ? "bg-destructive" : "bg-primary";
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-muted-foreground w-16 shrink-0">{label}</span>
       <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
         <motion.div
-          className="h-full rounded-full"
-          style={{ backgroundColor: color }}
+          className={`h-full rounded-full ${barColor}`}
           initial={false}
           animate={{ width: `${value}%` }}
           transition={{ duration: 0.5 }}

@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { Play, Pause, RotateCcw, Timer, CheckCircle2, Coffee, Lock, Infinity, StickyNote } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, CheckCircle2, Coffee, Lock, Infinity, StickyNote, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTodayTasks, type DbTask } from "@/hooks/useTasks";
@@ -15,38 +15,31 @@ interface FocusModeProps {
 
 export function FocusMode({ onOpenNotes }: FocusModeProps) {
   const { tasks, refetch } = useTodayTasks();
-  const { profile, updateProfile } = useProfile();
+  const { profile } = useProfile();
   const pendingTasks = tasks.filter(t => !t.completed);
   const canUseFlowtime = profile?.conscientiousness === "high";
-  const handledRef = useRef(false);
 
   const timer = useFocusTimer();
 
   const {
-    isRunning, secondsLeft, flowSeconds, preset, flowMode, isBreak,
+    isRunning, secondsLeft, flowSeconds, stopwatchSeconds, preset, flowMode, stopwatchMode, isBreak,
     completed, selectedTaskId, totalSeconds, progress, justFinished, breakJustFinished,
-    start, pause, reset, changePreset, changeFlowMode, changeSelectedTask,
+    start, pause, reset, changePreset, changeFlowMode, changeStopwatchMode, changeSelectedTask,
     markCompleted, startBreak, clearFinished, clearBreakFinished,
   } = timer;
 
+  // Mode = "timer" (countdown / pomodoro / flowtime) or "stopwatch" (count up)
+  const mode: "timer" | "stopwatch" = stopwatchMode ? "stopwatch" : "timer";
+  const setMode = (m: "timer" | "stopwatch") => {
+    if (m === "stopwatch") changeStopwatchMode(true);
+    else changeStopwatchMode(false);
+  };
+
   // Handle work completion side effects
   useEffect(() => {
-    if (!justFinished || handledRef.current) return;
-    handledRef.current = true;
+    if (!justFinished) return;
 
     (async () => {
-      if (profile) {
-        const coinUpdates: any = { study_coins: (profile.study_coins ?? 0) + 10 };
-        if (!profile.has_hatched) {
-          coinUpdates.has_hatched = true;
-          coinUpdates.last_decay_update = new Date().toISOString();
-        }
-        await updateProfile(coinUpdates);
-        toast({
-          title: "🪙 +10 Study Coins!",
-          description: profile.has_hatched ? "Moedas adicionadas ao seu saldo." : "🎉 Seu Study Puppy nasceu! Vá ao Dashboard!",
-        });
-      }
       if (selectedTaskId && selectedTaskId !== "none") {
         await supabase.from("tasks").update({ completed: true, updated_at: new Date().toISOString() } as any).eq("id", selectedTaskId);
         await refetch();
@@ -55,7 +48,6 @@ export function FocusMode({ onOpenNotes }: FocusModeProps) {
         toast({ title: "🎉 Sessão concluída!", description: "Bom trabalho! Descanse um pouco." });
       }
       clearFinished();
-      handledRef.current = false;
     })();
   }, [justFinished]);
 
@@ -66,29 +58,51 @@ export function FocusMode({ onOpenNotes }: FocusModeProps) {
     clearBreakFinished();
   }, [breakJustFinished]);
 
-  const displayMinutes = flowMode && !isBreak ? Math.floor(flowSeconds / 60) : Math.floor(secondsLeft / 60);
-  const displaySeconds = flowMode && !isBreak ? flowSeconds % 60 : secondsLeft % 60;
+  const activeCount =
+    stopwatchMode && !isBreak ? stopwatchSeconds :
+    flowMode && !isBreak ? flowSeconds :
+    secondsLeft;
+  const displayMinutes = Math.floor(activeCount / 60);
+  const displaySeconds = activeCount % 60;
   const circumference = 2 * Math.PI * 120;
   const strokeDashoffset = circumference * (1 - progress);
   const selectedTask = pendingTasks.find(t => t.id === selectedTaskId);
 
   return (
-    <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
+    <div className="flex-1 p-6 lg:p-12 overflow-y-auto pt-24">
       <div className="mb-8">
         <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">Produtividade</p>
         <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1 flex items-center gap-3">
           <Timer className="w-8 h-8 text-primary" />
           Modo Foco
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {canUseFlowtime
-            ? "Timer adaptativo — Pomodoro ou Flowtime disponível."
-            : "Timer Pomodoro fixo — ideal para seu perfil cognitivo."}
-        </p>
       </div>
 
       <div className="max-w-md mx-auto flex flex-col items-center gap-8">
-        {/* Mode selector */}
+        {/* Top-level mode selector: Timer vs Stopwatch */}
+        <div className="flex gap-2 w-full">
+          <button
+            onClick={() => setMode("timer")}
+            disabled={isRunning}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+              mode === "timer" ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground"
+            } disabled:opacity-50`}
+          >
+            <Timer className="w-3.5 h-3.5" /> Timer
+          </button>
+          <button
+            onClick={() => setMode("stopwatch")}
+            disabled={isRunning}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+              mode === "stopwatch" ? "neu-pressed text-foreground" : "neu-btn text-muted-foreground"
+            } disabled:opacity-50`}
+          >
+            <Hourglass className="w-3.5 h-3.5" /> Cronômetro
+          </button>
+        </div>
+
+        {/* Preset selector (only for timer mode) */}
+        {mode === "timer" && (
         <div className="flex gap-2 w-full">
           {PRESETS.map((p, i) => (
             <button
@@ -118,6 +132,7 @@ export function FocusMode({ onOpenNotes }: FocusModeProps) {
             </div>
           )}
         </div>
+        )}
 
         {/* Task selector */}
         <div className="w-full">
@@ -142,7 +157,7 @@ export function FocusMode({ onOpenNotes }: FocusModeProps) {
             <circle cx="130" cy="130" r="120" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
             <circle
               cx="130" cy="130" r="120" fill="none"
-              stroke={isBreak ? "hsl(var(--neon-blue))" : flowMode ? "hsl(var(--neon-green))" : "hsl(var(--primary))"}
+              stroke={isBreak ? "hsl(var(--neon-blue))" : stopwatchMode ? "hsl(var(--neon-blue))" : flowMode ? "hsl(var(--neon-green))" : "hsl(var(--primary))"}
               strokeWidth="6"
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -152,7 +167,7 @@ export function FocusMode({ onOpenNotes }: FocusModeProps) {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xs text-muted-foreground mb-1">
-              {isBreak ? "☕ Pausa" : completed ? "✅ Concluído" : flowMode ? "🌊 Flow" : "🔥 Foco"}
+              {isBreak ? "☕ Pausa" : completed ? "✅ Concluído" : stopwatchMode ? "⏱️ Cronômetro" : flowMode ? "🌊 Flow" : "🔥 Foco"}
             </span>
             <span className="text-5xl font-display font-bold text-foreground tabular-nums">
               {String(displayMinutes).padStart(2, "0")}:{String(displaySeconds).padStart(2, "0")}
@@ -189,14 +204,14 @@ export function FocusMode({ onOpenNotes }: FocusModeProps) {
 
         {/* Quick actions */}
         <div className="flex gap-2 flex-wrap justify-center">
-          {isRunning && flowMode && (
+          {isRunning && (flowMode || stopwatchMode) && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Button onClick={markCompleted} variant="outline" className="neu-btn text-xs">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Finalizar Flow
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Finalizar Sessão
               </Button>
             </motion.div>
           )}
-          {isRunning && selectedTaskId && selectedTaskId !== "none" && !flowMode && (
+          {isRunning && selectedTaskId && selectedTaskId !== "none" && !flowMode && !stopwatchMode && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Button onClick={markCompleted} variant="outline" className="neu-btn text-xs">
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Concluir agora

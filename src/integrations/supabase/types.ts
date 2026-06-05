@@ -73,6 +73,74 @@ export type Database = {
         }
         Relationships: []
       }
+      espcex_contents: {
+        Row: {
+          correct: number
+          created_at: string
+          exam_id: string
+          id: string
+          name: string
+          post_questions: number
+          total_questions: number
+          user_id: string
+          wrong: number
+        }
+        Insert: {
+          correct?: number
+          created_at?: string
+          exam_id: string
+          id?: string
+          name: string
+          post_questions?: number
+          total_questions?: number
+          user_id: string
+          wrong?: number
+        }
+        Update: {
+          correct?: number
+          created_at?: string
+          exam_id?: string
+          id?: string
+          name?: string
+          post_questions?: number
+          total_questions?: number
+          user_id?: string
+          wrong?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "espcex_contents_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "espcex_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      espcex_exams: {
+        Row: {
+          created_at: string
+          exam_date: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exam_date: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exam_date?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notebook_sources: {
         Row: {
           content: string | null

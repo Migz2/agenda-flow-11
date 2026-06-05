@@ -18,6 +18,9 @@ interface PersistedState {
   pausedRemaining: number | null;
   pausedFlowElapsed: number | null;
   completed: boolean;
+  stopwatchMode: boolean;
+  stopwatchStart: number | null;
+  stopwatchPausedElapsed: number | null;
 }
 
 function load(): PersistedState | null {
@@ -37,8 +40,10 @@ interface TimerCtx {
   isRunning: boolean;
   secondsLeft: number;
   flowSeconds: number;
+  stopwatchSeconds: number;
   preset: number;
   flowMode: boolean;
+  stopwatchMode: boolean;
   isBreak: boolean;
   completed: boolean;
   selectedTaskId: string;
@@ -52,6 +57,7 @@ interface TimerCtx {
   reset: () => void;
   changePreset: (p: number) => void;
   changeFlowMode: (f: boolean) => void;
+  changeStopwatchMode: (f: boolean) => void;
   changeSelectedTask: (id: string) => void;
   markCompleted: () => void;
   startBreak: () => void;
@@ -66,6 +72,7 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
 
   const [preset, setPreset] = useState(init.current?.preset ?? 0);
   const [flowMode, setFlowMode] = useState(init.current?.flowMode ?? false);
+  const [stopwatchMode, setStopwatchMode] = useState(init.current?.stopwatchMode ?? false);
   const [selectedTaskId, setSelectedTaskId] = useState(init.current?.selectedTaskId ?? "");
   const [isBreak, setIsBreak] = useState(init.current?.isBreak ?? false);
   const [completed, setCompleted] = useState(init.current?.completed ?? false);
@@ -74,9 +81,12 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
   const [flowStart, setFlowStart] = useState<number | null>(init.current?.flowStart ?? null);
   const [pausedRemaining, setPausedRemaining] = useState<number | null>(init.current?.pausedRemaining ?? null);
   const [pausedFlowElapsed, setPausedFlowElapsed] = useState<number | null>(init.current?.pausedFlowElapsed ?? null);
+  const [stopwatchStart, setStopwatchStart] = useState<number | null>(init.current?.stopwatchStart ?? null);
+  const [stopwatchPausedElapsed, setStopwatchPausedElapsed] = useState<number | null>(init.current?.stopwatchPausedElapsed ?? null);
 
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [flowSeconds, setFlowSeconds] = useState(0);
+  const [stopwatchSeconds, setStopwatchSeconds] = useState(0);
   const [justFinished, setJustFinished] = useState(false);
   const [breakJustFinished, setBreakJustFinished] = useState(false);
 
@@ -85,8 +95,8 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
 
   // Persist
   useEffect(() => {
-    persist({ targetEnd, flowStart, preset, flowMode, isBreak, selectedTaskId, isPaused, pausedRemaining, pausedFlowElapsed, completed });
-  }, [targetEnd, flowStart, preset, flowMode, isBreak, selectedTaskId, isPaused, pausedRemaining, pausedFlowElapsed, completed]);
+    persist({ targetEnd, flowStart, preset, flowMode, isBreak, selectedTaskId, isPaused, pausedRemaining, pausedFlowElapsed, completed, stopwatchMode, stopwatchStart, stopwatchPausedElapsed });
+  }, [targetEnd, flowStart, preset, flowMode, isBreak, selectedTaskId, isPaused, pausedRemaining, pausedFlowElapsed, completed, stopwatchMode, stopwatchStart, stopwatchPausedElapsed]);
 
   // Tick
   useEffect(() => {
@@ -96,9 +106,13 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
         else if (!completed) setSecondsLeft(PRESETS[preset].work * 60);
         if (pausedFlowElapsed !== null) setFlowSeconds(Math.round(pausedFlowElapsed));
         else if (isPaused && !completed) setFlowSeconds(0);
+        if (stopwatchPausedElapsed !== null) setStopwatchSeconds(Math.round(stopwatchPausedElapsed));
+        else if (isPaused && !completed) setStopwatchSeconds(0);
         return;
       }
-      if (flowMode && !isBreak && flowStart) {
+      if (stopwatchMode && !isBreak && stopwatchStart) {
+        setStopwatchSeconds(Math.floor((Date.now() - stopwatchStart) / 1000));
+      } else if (flowMode && !isBreak && flowStart) {
         setFlowSeconds(Math.floor((Date.now() - flowStart) / 1000));
       } else if (targetEnd) {
         const rem = (targetEnd - Date.now()) / 1000;
@@ -122,10 +136,12 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
-  }, [isPaused, completed, flowMode, isBreak, targetEnd, flowStart, preset, pausedRemaining, pausedFlowElapsed]);
+  }, [isPaused, completed, flowMode, stopwatchMode, isBreak, targetEnd, flowStart, stopwatchStart, preset, pausedRemaining, pausedFlowElapsed, stopwatchPausedElapsed]);
 
   const start = useCallback(() => {
-    if (flowMode && !isBreak) {
+    if (stopwatchMode && !isBreak) {
+      setStopwatchStart(stopwatchPausedElapsed != null ? Date.now() - stopwatchPausedElapsed * 1000 : Date.now());
+    } else if (flowMode && !isBreak) {
       setFlowStart(pausedFlowElapsed != null ? Date.now() - pausedFlowElapsed * 1000 : Date.now());
     } else {
       const rem = pausedRemaining ?? (isBreak ? PRESETS[preset].rest * 60 : PRESETS[preset].work * 60);
@@ -134,10 +150,14 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     setIsPaused(false);
     setPausedRemaining(null);
     setPausedFlowElapsed(null);
-  }, [flowMode, isBreak, pausedFlowElapsed, pausedRemaining, preset]);
+    setStopwatchPausedElapsed(null);
+  }, [flowMode, stopwatchMode, isBreak, pausedFlowElapsed, pausedRemaining, stopwatchPausedElapsed, preset]);
 
   const pause = useCallback(() => {
-    if (flowMode && !isBreak && flowStart) {
+    if (stopwatchMode && !isBreak && stopwatchStart) {
+      setStopwatchPausedElapsed(Math.floor((Date.now() - stopwatchStart) / 1000));
+      setStopwatchStart(null);
+    } else if (flowMode && !isBreak && flowStart) {
       setPausedFlowElapsed(Math.floor((Date.now() - flowStart) / 1000));
       setFlowStart(null);
     } else if (targetEnd) {
@@ -145,41 +165,49 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
       setTargetEnd(null);
     }
     setIsPaused(true);
-  }, [flowMode, isBreak, flowStart, targetEnd]);
+  }, [flowMode, stopwatchMode, isBreak, flowStart, stopwatchStart, targetEnd]);
 
   const reset = useCallback(() => {
     setIsPaused(true);
     setTargetEnd(null);
     setFlowStart(null);
+    setStopwatchStart(null);
     setPausedRemaining(null);
     setPausedFlowElapsed(null);
+    setStopwatchPausedElapsed(null);
     setCompleted(false);
     setIsBreak(false);
     setJustFinished(false);
     setBreakJustFinished(false);
     setFlowSeconds(0);
+    setStopwatchSeconds(0);
     setSecondsLeft(PRESETS[preset].work * 60);
   }, [preset]);
 
   const changePreset = useCallback((p: number) => {
     setPreset(p);
     setFlowMode(false);
+    setStopwatchMode(false);
     setIsPaused(true);
     setTargetEnd(null);
     setFlowStart(null);
+    setStopwatchStart(null);
     setPausedRemaining(null);
     setPausedFlowElapsed(null);
+    setStopwatchPausedElapsed(null);
     setCompleted(false);
     setIsBreak(false);
     setJustFinished(false);
     setBreakJustFinished(false);
     setFlowSeconds(0);
+    setStopwatchSeconds(0);
     setSecondsLeft(PRESETS[p].work * 60);
   }, []);
 
   const changeFlowMode = useCallback((f: boolean) => {
     setFlowMode(f);
     if (f) {
+      setStopwatchMode(false);
       setIsPaused(true);
       setTargetEnd(null);
       setPausedRemaining(null);
@@ -190,11 +218,27 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const changeStopwatchMode = useCallback((f: boolean) => {
+    setStopwatchMode(f);
+    if (f) {
+      setFlowMode(false);
+      setIsPaused(true);
+      setTargetEnd(null);
+      setStopwatchStart(null);
+      setPausedRemaining(null);
+      setStopwatchPausedElapsed(null);
+      setCompleted(false);
+      setIsBreak(false);
+      setStopwatchSeconds(0);
+    }
+  }, []);
+
   const markCompleted = useCallback(() => {
     setCompleted(true);
     setIsPaused(true);
     setTargetEnd(null);
     setFlowStart(null);
+    setStopwatchStart(null);
     setJustFinished(true);
   }, []);
 
@@ -209,16 +253,18 @@ export function FocusTimerProvider({ children }: { children: ReactNode }) {
     setTargetEnd(Date.now() + PRESETS[preset].rest * 60 * 1000);
   }, [preset]);
 
-  const progress = flowMode && !isBreak
+  const progress = stopwatchMode && !isBreak
+    ? Math.min(stopwatchSeconds / 3600, 1)
+    : flowMode && !isBreak
     ? Math.min(flowSeconds / 3600, 1)
     : totalSeconds > 0 ? 1 - secondsLeft / totalSeconds : 0;
 
   return (
     <Ctx.Provider value={{
-      isRunning, secondsLeft, flowSeconds, preset, flowMode, isBreak,
+      isRunning, secondsLeft, flowSeconds, stopwatchSeconds, preset, flowMode, stopwatchMode, isBreak,
       completed, selectedTaskId, totalSeconds, progress, justFinished, breakJustFinished,
       start, pause, reset,
-      changePreset, changeFlowMode,
+      changePreset, changeFlowMode, changeStopwatchMode,
       changeSelectedTask: setSelectedTaskId,
       markCompleted, startBreak,
       clearFinished: () => setJustFinished(false),

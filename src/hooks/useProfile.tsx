@@ -38,6 +38,12 @@ export function useProfile() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  useEffect(() => {
+    const handler = () => fetchProfile();
+    window.addEventListener("profile:refresh", handler);
+    return () => window.removeEventListener("profile:refresh", handler);
+  }, [fetchProfile]);
+
   const updateProfile = async (updates: Partial<Omit<UserProfile, "id">>) => {
     if (!user) return;
     await supabase.from("profiles").update(updates as any).eq("id", user.id);

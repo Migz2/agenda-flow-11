@@ -16,6 +16,8 @@ export interface UserProfile {
   puppy_thirst: number;
   puppy_hygiene: number;
   last_decay_update: string | null;
+  total_focus_seconds: number;
+  study_days: string[];
 }
 
 export function useProfile() {

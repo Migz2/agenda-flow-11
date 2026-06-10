@@ -243,6 +243,8 @@ export type Database = {
           puppy_name: string | null
           puppy_thirst: number | null
           study_coins: number | null
+          study_days: string[]
+          total_focus_seconds: number
         }
         Insert: {
           avatar_url?: string | null
@@ -259,6 +261,8 @@ export type Database = {
           puppy_name?: string | null
           puppy_thirst?: number | null
           study_coins?: number | null
+          study_days?: string[]
+          total_focus_seconds?: number
         }
         Update: {
           avatar_url?: string | null
@@ -275,6 +279,8 @@ export type Database = {
           puppy_name?: string | null
           puppy_thirst?: number | null
           study_coins?: number | null
+          study_days?: string[]
+          total_focus_seconds?: number
         }
         Relationships: []
       }

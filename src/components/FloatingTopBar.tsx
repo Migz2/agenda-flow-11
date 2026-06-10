@@ -18,7 +18,7 @@ const navItems = [
   { id: "study", label: "Estudos", icon: GraduationCap },
   { id: "aihub", label: "AI Hub", icon: Brain },
   { id: "focus", label: "Foco", icon: Timer },
-  { id: "espcex", label: "EsPCEx", icon: Target },
+  { id: "performance", label: "Desempenho", icon: Target },
   { id: "profile", label: "Perfil", icon: User },
 ];
 

@@ -16,6 +16,8 @@ export interface UserProfile {
   puppy_thirst: number;
   puppy_hygiene: number;
   last_decay_update: string | null;
+  total_focus_seconds: number;
+  study_days: string[];
 }
 
 export function useProfile() {
@@ -35,6 +37,12 @@ export function useProfile() {
   }, [user]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  useEffect(() => {
+    const handler = () => fetchProfile();
+    window.addEventListener("profile:refresh", handler);
+    return () => window.removeEventListener("profile:refresh", handler);
+  }, [fetchProfile]);
 
   const updateProfile = async (updates: Partial<Omit<UserProfile, "id">>) => {
     if (!user) return;

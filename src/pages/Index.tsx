@@ -7,7 +7,7 @@ import { StudyRoutineGenerator } from "@/components/StudyRoutineGenerator";
 import { AIHubPage } from "@/components/AIHubPage";
 import { FocusMode } from "@/components/FocusMode";
 import { MetaDashboard } from "@/components/MetaDashboard";
-import { EsPCExPerformance } from "@/components/EsPCExPerformance";
+import { PerformancePage } from "@/components/EsPCExPerformance";
 import { ProfilePage } from "@/components/ProfilePage";
 import { NotesPanel } from "@/components/NotesPanel";
 import { FocusTimerProvider } from "@/hooks/useFocusTimer";
@@ -26,7 +26,8 @@ const Index = () => {
       case "study": return <StudyRoutineGenerator />;
       case "aihub": return <AIHubPage />;
       case "focus": return <FocusMode onOpenNotes={(task) => setNotesTask(task)} />;
-      case "espcex": return <EsPCExPerformance />;
+      case "performance": return <PerformancePage />;
+      case "espcex": return <PerformancePage />;
       case "profile": return <ProfilePage />;
       default: return <MetaDashboard />;
     }

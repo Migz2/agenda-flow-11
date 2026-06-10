@@ -11,9 +11,9 @@ import {
   ResponsiveContainer, Legend,
 } from "recharts";
 
-function calculateStreak(completedTasks: any[]): number {
-  if (completedTasks.length === 0) return 0;
-  const dates = new Set(completedTasks.map(t => new Date(t.updated_at).toISOString().slice(0, 10)));
+function calculateStreakFromDays(days: string[]): number {
+  if (!days || days.length === 0) return 0;
+  const dates = new Set(days);
   let streak = 0;
   const today = new Date();
   for (let i = 0; i < 365; i++) {
@@ -24,14 +24,6 @@ function calculateStreak(completedTasks: any[]): number {
     else break;
   }
   return streak;
-}
-
-function calculateHours(tasks: any[]): number {
-  return tasks.reduce((sum, t) => {
-    const s = new Date(t.start_time).getTime();
-    const e = new Date(t.end_time).getTime();
-    return sum + (e - s) / 3600000;
-  }, 0);
 }
 
 function MetricCard({ label, value, subtitle, icon: Icon, glowClass }: { label: string; value: string; subtitle: string; icon: any; glowClass?: string }) {
@@ -54,30 +46,46 @@ export function MetaDashboard() {
   const { user } = useAuth();
   const { theme } = useTheme();
 
-  const [espcexSummary, setEspcexSummary] = useState<{ name: string; pct: number }[]>([]);
+  const [examSummary, setExamSummary] = useState<{ name: string; pct: number }[]>([]);
+  const [contentSummary, setContentSummary] = useState<{ name: string; pct: number }[]>([]);
+  const [widgetMode, setWidgetMode] = useState<"exam" | "content">("exam");
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data: exams } = await (supabase as any)
         .from("espcex_exams").select("id,name,exam_date").eq("user_id", user.id)
-        .order("exam_date", { ascending: false }).limit(3);
+        .order("exam_date", { ascending: false }).limit(5);
       if (!exams || exams.length === 0) return;
       const ids = exams.map((e: any) => e.id);
       const { data: contents } = await (supabase as any)
-        .from("espcex_contents").select("exam_id,total_questions,correct").in("exam_id", ids);
-      const summary = exams.map((e: any) => {
+        .from("espcex_contents").select("exam_id,name,total_questions,correct").in("exam_id", ids);
+      const summary = exams.slice(0, 3).map((e: any) => {
         const rows = (contents ?? []).filter((c: any) => c.exam_id === e.id);
         const total = rows.reduce((s: number, r: any) => s + (r.total_questions || 0), 0);
         const correct = rows.reduce((s: number, r: any) => s + (r.correct || 0), 0);
         return { name: e.name, pct: total > 0 ? Math.round((correct / total) * 100) : 0 };
       });
-      setEspcexSummary(summary);
+      setExamSummary(summary);
+
+      // Aggregate by content name across recent exams
+      const byName = new Map<string, { total: number; correct: number }>();
+      (contents ?? []).forEach((c: any) => {
+        const e = byName.get(c.name) ?? { total: 0, correct: 0 };
+        e.total += c.total_questions || 0; e.correct += c.correct || 0;
+        byName.set(c.name, e);
+      });
+      setContentSummary(
+        Array.from(byName.entries())
+          .map(([name, v]) => ({ name, pct: v.total > 0 ? Math.round((v.correct / v.total) * 100) : 0 }))
+          .sort((a, b) => b.pct - a.pct)
+          .slice(0, 6)
+      );
     })();
   }, [user]);
 
-  const hours = useMemo(() => calculateHours(completedTasks), [completedTasks]);
-  const streak = useMemo(() => calculateStreak(completedTasks), [completedTasks]);
+  const hours = useMemo(() => (profile?.total_focus_seconds ?? 0) / 3600, [profile?.total_focus_seconds]);
+  const streak = useMemo(() => calculateStreakFromDays(profile?.study_days ?? []), [profile?.study_days]);
 
   // Weekly tasks completed (current vs previous 7-day windows)
   const weeklyData = useMemo(() => {
@@ -154,27 +162,43 @@ export function MetaDashboard() {
         />
       </div>
 
-      {/* EsPCEx widget */}
+      {/* Desempenho widget */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card neu-flat rounded-2xl p-6 mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-display font-semibold text-foreground">Últimos Progressos EsPCEx</h3>
-        </div>
-        {espcexSummary.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Nenhuma prova registrada. Acesse a aba EsPCEx para começar.</p>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            {espcexSummary.slice().reverse().map((e, i, arr) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="px-3 py-1.5 rounded-xl neu-pressed text-xs">
-                  <span className="font-medium text-foreground">{e.name}</span>
-                  <span className="text-muted-foreground"> · {e.pct}%</span>
-                </span>
-                {i < arr.length - 1 && <span className="text-muted-foreground">→</span>}
-              </div>
-            ))}
+        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-display font-semibold text-foreground">Últimos Progressos Desempenho</h3>
           </div>
-        )}
+          <div className="flex gap-1 p-1 rounded-xl neu-pressed">
+            <button
+              onClick={() => setWidgetMode("exam")}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${widgetMode === "exam" ? "bg-card neu-flat text-foreground" : "text-muted-foreground"}`}
+            >Por Prova</button>
+            <button
+              onClick={() => setWidgetMode("content")}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${widgetMode === "content" ? "bg-card neu-flat text-foreground" : "text-muted-foreground"}`}
+            >Por Conteúdo</button>
+          </div>
+        </div>
+        {(() => {
+          const items = widgetMode === "exam" ? examSummary : contentSummary;
+          if (items.length === 0) {
+            return <p className="text-xs text-muted-foreground">Nenhuma prova registrada. Acesse a aba Desempenho para começar.</p>;
+          }
+          return (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {(widgetMode === "exam" ? items.slice().reverse() : items).map((e, i, arr) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-xl neu-pressed text-xs">
+                    <span className="font-medium text-foreground">{e.name}</span>
+                    <span className="text-muted-foreground"> · {e.pct}%</span>
+                  </span>
+                  {widgetMode === "exam" && i < arr.length - 1 && <span className="text-muted-foreground">→</span>}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </motion.div>
 
       {/* Productivity charts */}

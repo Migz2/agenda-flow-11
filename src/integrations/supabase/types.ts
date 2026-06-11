@@ -80,6 +80,7 @@ export type Database = {
           exam_id: string
           id: string
           name: string
+          parent_id: string | null
           post_questions: number
           total_questions: number
           user_id: string
@@ -91,6 +92,7 @@ export type Database = {
           exam_id: string
           id?: string
           name: string
+          parent_id?: string | null
           post_questions?: number
           total_questions?: number
           user_id: string
@@ -102,6 +104,7 @@ export type Database = {
           exam_id?: string
           id?: string
           name?: string
+          parent_id?: string | null
           post_questions?: number
           total_questions?: number
           user_id?: string
@@ -115,6 +118,13 @@ export type Database = {
             referencedRelation: "espcex_exams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "espcex_contents_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "espcex_contents"
+            referencedColumns: ["id"]
+          },
         ]
       }
       espcex_exams: {
@@ -123,6 +133,8 @@ export type Database = {
           exam_date: string
           id: string
           name: string
+          notebook_id: string | null
+          notes: string | null
           user_id: string
         }
         Insert: {
@@ -130,6 +142,8 @@ export type Database = {
           exam_date: string
           id?: string
           name: string
+          notebook_id?: string | null
+          notes?: string | null
           user_id: string
         }
         Update: {
@@ -137,9 +151,19 @@ export type Database = {
           exam_date?: string
           id?: string
           name?: string
+          notebook_id?: string | null
+          notes?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "espcex_exams_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notebook_sources: {
         Row: {
@@ -283,6 +307,54 @@ export type Database = {
           total_focus_seconds?: number
         }
         Relationships: []
+      }
+      quiz_sessions: {
+        Row: {
+          correct: number
+          created_at: string
+          exam_id: string | null
+          id: string
+          notebook_id: string
+          topic: string | null
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          correct?: number
+          created_at?: string
+          exam_id?: string | null
+          id?: string
+          notebook_id: string
+          topic?: string | null
+          total_questions?: number
+          user_id: string
+        }
+        Update: {
+          correct?: number
+          created_at?: string
+          exam_id?: string | null
+          id?: string
+          notebook_id?: string
+          topic?: string | null
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_sessions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "espcex_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_sessions_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       study_generations: {
         Row: {

@@ -156,8 +156,13 @@ export function MetaDashboard() {
         />
         <MetricCard
           label="Tarefas Concluídas"
-          value={String(completedTasks.length)}
-          subtitle={`${allTasks.filter(t => !t.completed).length} pendentes`}
+          value={String(
+            completedTasks.filter(t => {
+              const d = new Date(t.updated_at).getTime();
+              return d >= Date.now() - 7 * 24 * 60 * 60 * 1000;
+            }).length
+          )}
+          subtitle={`últimos 7 dias · ${allTasks.filter(t => !t.completed).length} pendentes`}
           icon={Target}
         />
       </div>

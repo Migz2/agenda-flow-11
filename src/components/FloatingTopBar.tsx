@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BarChart3, LayoutList, CheckSquare, Calendar, Brain, Sun, Moon, LogOut, Timer, GraduationCap, User, Target } from "lucide-react";
+import { BarChart3, LayoutList, Calendar, Brain, Sun, Moon, LogOut, Timer, User, Target, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface FloatingTopBarProps {
   currentPage: string;
@@ -12,14 +19,11 @@ interface FloatingTopBarProps {
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-  { id: "planner", label: "Planner", icon: LayoutList },
-  { id: "tasks", label: "Tasks", icon: CheckSquare },
-  { id: "calendar", label: "Calendar", icon: Calendar },
-  { id: "study", label: "Estudos", icon: GraduationCap },
-  { id: "aihub", label: "AI Hub", icon: Brain },
-  { id: "focus", label: "Foco", icon: Timer },
   { id: "performance", label: "Desempenho", icon: Target },
-  { id: "profile", label: "Perfil", icon: User },
+  { id: "planner", label: "Daily Planner", icon: LayoutList },
+  { id: "calendar", label: "Calendar", icon: Calendar },
+  { id: "focus", label: "Foco", icon: Timer },
+  { id: "aihub", label: "AI Study Hub", icon: Brain },
 ];
 
 export function FloatingTopBar({ currentPage, onNavigate }: FloatingTopBarProps) {
@@ -84,26 +88,31 @@ export function FloatingTopBar({ currentPage, onNavigate }: FloatingTopBarProps)
             })}
 
             <div className="w-px h-5 bg-border/50 mx-1" />
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={toggleTheme} className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
-                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={signOut} className="p-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all">
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">Sair</TooltipContent>
-            </Tooltip>
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">Configurações</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="bg-card neu-flat border-border/40 rounded-xl min-w-44">
+                <DropdownMenuItem onClick={() => onNavigate("profile")} className="cursor-pointer">
+                  <User className="w-4 h-4 mr-2" /> Perfil
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+                  {theme === "dark" ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                  {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" /> Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </motion.div>
       )}

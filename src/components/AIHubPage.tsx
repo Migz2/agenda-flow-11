@@ -225,7 +225,7 @@ function SourceViewerModal({ source, onClose }: { source: any; onClose: () => vo
 }
 
 /* ========== Quiz UI ========== */
-function QuizView({ questions, sources, onBack }: { questions: QuizQuestion[]; sources: { title: string; content: string }[]; onBack: () => void }) {
+function QuizView({ questions, sources, onBack, onFinish }: { questions: QuizQuestion[]; sources: { title: string; content: string }[]; onBack: () => void; onFinish?: (score: number, total: number) => void }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -233,6 +233,7 @@ function QuizView({ questions, sources, onBack }: { questions: QuizQuestion[]; s
   const [explaining, setExplaining] = useState(false);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
+  const [reported, setReported] = useState(false);
 
   const q = questions[currentIdx];
   if (!q) return null;
@@ -276,6 +277,13 @@ function QuizView({ questions, sources, onBack }: { questions: QuizQuestion[]; s
   };
 
   const finished = currentIdx === questions.length - 1 && answered;
+
+  useEffect(() => {
+    if (finished && !reported && onFinish) {
+      setReported(true);
+      onFinish(score, questions.length);
+    }
+  }, [finished, reported, onFinish, score, questions.length]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -372,7 +380,9 @@ function QuizView({ questions, sources, onBack }: { questions: QuizQuestion[]; s
 function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; onBack: () => void; categories: any[] }) {
   const { sources, addSource, removeSource, syncTaskNotes } = useNotebookSources(notebook.id);
   const { messages, addMessage, updateLastAssistant, clearMessages } = useChatMessages(notebook.id);
-  const [activeTab, setActiveTab] = useState<"sources" | "exercises" | "chat" | "feynman">("sources");
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"sources" | "exercises" | "chat" | "feynman" | "history">("sources");
+  const [history, setHistory] = useState<any[]>([]);
   const [chatMode, setChatMode] = useState<"sources_only" | "general">("sources_only");
   const [chatInput, setChatInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -393,6 +403,38 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const [feynmanStreaming, setFeynmanStreaming] = useState(false);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const loadHistory = async () => {
+    const { data } = await (supabase as any).from("quiz_sessions")
+      .select("*, espcex_exams(name)").eq("notebook_id", notebook.id).order("created_at", { ascending: false });
+    setHistory(data ?? []);
+  };
+  useEffect(() => { if (notebook.id) loadHistory(); }, [notebook.id]);
+
+  const handleQuizFinished = async (score: number, total: number) => {
+    if (!user) return;
+    const { data: linkedExams } = await (supabase as any).from("espcex_exams")
+      .select("id").eq("user_id", user.id).eq("notebook_id", notebook.id);
+    const examId = linkedExams && linkedExams.length > 0 ? linkedExams[0].id : null;
+
+    await (supabase as any).from("quiz_sessions").insert({
+      user_id: user.id, notebook_id: notebook.id, exam_id: examId,
+      total_questions: total, correct: score, topic: notebook.title,
+    });
+
+    if (examId) {
+      // Feed exam metrics: insert/update a content row "Quiz IA"
+      const label = `Quiz IA · ${new Date().toLocaleDateString("pt-BR")}`;
+      await (supabase as any).from("espcex_contents").insert({
+        user_id: user.id, exam_id: examId, name: label,
+        total_questions: total, correct: score, wrong: Math.max(0, total - score), post_questions: 0,
+      });
+      toast({ title: "Resultado registrado!", description: `Métricas da prova vinculada foram atualizadas (${score}/${total}).` });
+    } else {
+      toast({ title: "Quiz salvo no histórico", description: `${score}/${total} acertos.` });
+    }
+    loadHistory();
+  };
 
   const cat = categories.find((c: any) => c.id === notebook.category_id);
 
@@ -479,6 +521,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
     { id: "exercises", label: "Quiz", icon: Sparkles },
     { id: "feynman", label: "Feynman", icon: MessageCircle },
     { id: "chat", label: "Chat Tutor", icon: MessageSquare },
+    { id: "history", label: "Histórico", icon: History },
   ] as const;
 
   const handleFeynman = async () => {
@@ -601,12 +644,56 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
         {activeTab === "exercises" && (
           <div>
             {quizQuestions && quizQuestions.length > 0 ? (
-              <QuizView questions={quizQuestions} sources={sources.map(s => ({ title: s.title, content: s.content }))} onBack={() => setQuizQuestions(null)} />
+              <QuizView
+                questions={quizQuestions}
+                sources={sources.map(s => ({ title: s.title, content: s.content }))}
+                onBack={() => setQuizQuestions(null)}
+                onFinish={handleQuizFinished}
+              />
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-40" />
                 <p className="text-sm">Nenhum quiz gerado ainda.</p>
                 <p className="text-xs mt-1">Clique em "Gerar Quiz" para criar questões interativas baseadas nas suas fontes.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "history" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-display font-semibold text-foreground flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" /> Histórico de Provas / Quizzes
+              </h3>
+              <button onClick={loadHistory} className="text-xs text-muted-foreground hover:text-foreground">
+                <RefreshCw className="w-3 h-3 inline mr-1" /> Atualizar
+              </button>
+            </div>
+            {history.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <History className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">Nenhuma sessão de quiz registrada.</p>
+                <p className="text-xs mt-1">Termine um quiz para começar o histórico.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {history.map((h: any) => {
+                  const pct = h.total_questions > 0 ? Math.round((h.correct / h.total_questions) * 100) : 0;
+                  return (
+                    <div key={h.id} className="bg-card neu-flat rounded-xl p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {h.espcex_exams?.name ? `Prova: ${h.espcex_exams.name}` : "Quiz livre"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">{new Date(h.created_at).toLocaleString("pt-BR")}</p>
+                      </div>
+                      <span className="px-3 py-1 rounded-xl neu-pressed text-xs font-semibold text-primary">
+                        {h.correct}/{h.total_questions} · {pct}%
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

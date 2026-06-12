@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,27 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mode, sources, type, question, interleaving } = await req.json();
+    // ===== JWT validation: only signed-in users can spend AI credits =====
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { messages, mode, sources, type, question, interleaving, count, difficulty } = await req.json();
 
     const sourcesText = (sources || []).map((s: any) => `[${s.title}]: ${s.content}`).join("\n\n");
 
@@ -34,6 +55,14 @@ serve(async (req) => {
       const interleavingNote = interleaving
         ? "\nIMPORTANTE: Misture assuntos de DIFERENTES fontes nas questões (técnica Interleaving). Não agrupe perguntas por tema."
         : "";
+      const qCount = Math.max(1, Math.min(30, Number(count) || 10));
+      const diff = typeof difficulty === "string" ? difficulty : "Médio";
+      const difficultyNote = {
+        "Fácil": "Mantenha as questões em nível introdutório, com pegadinhas mínimas.",
+        "Médio": "Equilibre questões diretas com aplicações práticas.",
+        "Difícil": "Inclua questões com raciocínio multietapa e distratores fortes.",
+        "Nível EsPCEx": "Use o estilo da prova da EsPCEx: questões objetivas, técnicas, com nível de dificuldade alto, redação formal e enunciados curtos.",
+      }[diff] ?? "";
 
       const systemPrompt = `Você é um tutor especializado em gerar quizzes interativos.
 Baseie-se ESTRITAMENTE nas seguintes fontes/anotações do aluno:
@@ -42,7 +71,8 @@ Baseie-se ESTRITAMENTE nas seguintes fontes/anotações do aluno:
 ${sourcesText}
 --- FIM DAS FONTES ---
 ${interleavingNote}
-Gere exatamente 10 questões de múltipla escolha (A, B, C, D). Cada questão DEVE ter exatamente 4 alternativas.
+Gere exatamente ${qCount} questões de múltipla escolha (A, B, C, D). Cada questão DEVE ter exatamente 4 alternativas.
+Dificuldade alvo: ${diff}. ${difficultyNote}
 Para cada alternativa incorreta, inclua uma breve explicação de por que está errada.
 Para a alternativa correta, inclua uma explicação de por que está certa.
 
@@ -79,7 +109,8 @@ Todas as perguntas em português do Brasil.`;
         const parsed = JSON.parse(content);
         return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch {
-        return new Response(JSON.stringify({ error: "Falha ao parsear quiz. Tente novamente.", raw: content }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.error("Raw AI quiz response (parse failure):", content);
+        return new Response(JSON.stringify({ error: "Falha ao parsear quiz. Tente novamente." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 

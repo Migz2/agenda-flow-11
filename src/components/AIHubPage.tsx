@@ -746,7 +746,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
               <input type="checkbox" checked={interleaving} onChange={e => setInterleaving(e.target.checked)} className="rounded" />
               Interleaving
             </label>
-            <Button onClick={handleGenerateQuiz} disabled={generatingQuiz} size="sm" className="bg-primary text-primary-foreground glow-pink text-xs">
+            <Button onClick={openQuizOptions} disabled={generatingQuiz} size="sm" className="bg-primary text-primary-foreground glow-pink text-xs">
               {generatingQuiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
               Gerar Quiz
             </Button>

@@ -165,6 +165,27 @@ export type Database = {
           },
         ]
       }
+      notebook_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notebook_sources: {
         Row: {
           content: string | null
@@ -220,6 +241,8 @@ export type Database = {
         Row: {
           category_id: string | null
           created_at: string
+          exam_content_id: string | null
+          folder_id: string | null
           id: string
           title: string
           updated_at: string
@@ -228,6 +251,8 @@ export type Database = {
         Insert: {
           category_id?: string | null
           created_at?: string
+          exam_content_id?: string | null
+          folder_id?: string | null
           id?: string
           title: string
           updated_at?: string
@@ -236,6 +261,8 @@ export type Database = {
         Update: {
           category_id?: string | null
           created_at?: string
+          exam_content_id?: string | null
+          folder_id?: string | null
           id?: string
           title?: string
           updated_at?: string
@@ -247,6 +274,20 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "custom_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notebooks_exam_content_id_fkey"
+            columns: ["exam_content_id"]
+            isOneToOne: false
+            referencedRelation: "espcex_contents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notebooks_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "notebook_folders"
             referencedColumns: ["id"]
           },
         ]
@@ -310,36 +351,55 @@ export type Database = {
       }
       quiz_sessions: {
         Row: {
+          answers: Json | null
+          content_id: string | null
           correct: number
           created_at: string
+          difficulty: string | null
           exam_id: string | null
           id: string
           notebook_id: string
+          questions: Json | null
           topic: string | null
           total_questions: number
           user_id: string
         }
         Insert: {
+          answers?: Json | null
+          content_id?: string | null
           correct?: number
           created_at?: string
+          difficulty?: string | null
           exam_id?: string | null
           id?: string
           notebook_id: string
+          questions?: Json | null
           topic?: string | null
           total_questions?: number
           user_id: string
         }
         Update: {
+          answers?: Json | null
+          content_id?: string | null
           correct?: number
           created_at?: string
+          difficulty?: string | null
           exam_id?: string | null
           id?: string
           notebook_id?: string
+          questions?: Json | null
           topic?: string | null
           total_questions?: number
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "quiz_sessions_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "espcex_contents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quiz_sessions_exam_id_fkey"
             columns: ["exam_id"]

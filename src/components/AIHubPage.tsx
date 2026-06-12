@@ -97,12 +97,35 @@ async function extractPdfText(file: File): Promise<string> {
 }
 
 export function AIHubPage() {
-  const { notebooks, loading, addNotebook, deleteNotebook } = useNotebooks();
+  const { notebooks, loading, addNotebookFull, updateNotebook, deleteNotebook } = useNotebooks();
+  const { folders, addFolder, renameFolder, deleteFolder } = useNotebookFolders();
   const { categories } = useCustomCategories();
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<string>("");
+  const [newFolderId, setNewFolderId] = useState<string>("none");
+  const [newExamContentId, setNewExamContentId] = useState<string>("none");
+  const [activeFolderId, setActiveFolderId] = useState<string>("all");
+  const [examContentOpts, setExamContentOpts] = useState<{ id: string; label: string }[]>([]);
+  const [folderModalOpen, setFolderModalOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { data: exams } = await (supabase as any).from("espcex_exams").select("id,name");
+      const { data: contents } = await (supabase as any).from("espcex_contents").select("id,name,exam_id,parent_id");
+      if (!exams || !contents) return;
+      const opts: { id: string; label: string }[] = [];
+      contents.forEach((c: any) => {
+        const exam = exams.find((e: any) => e.id === c.exam_id);
+        if (!exam) return;
+        const prefix = c.parent_id ? "↳ " : "";
+        opts.push({ id: c.id, label: `${exam.name} · ${prefix}${c.name}` });
+      });
+      setExamContentOpts(opts);
+    })();
+  }, []);
 
   if (selectedNotebook) {
     return <NotebookView notebook={selectedNotebook} onBack={() => setSelectedNotebook(null)} categories={categories} />;
@@ -110,14 +133,27 @@ export function AIHubPage() {
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
-    const nb = await addNotebook(newTitle, newCategoryId || null);
+    const nb = await addNotebookFull({
+      title: newTitle,
+      category_id: newCategoryId && newCategoryId !== "none" ? newCategoryId : null,
+      folder_id: newFolderId !== "none" ? newFolderId : (activeFolderId !== "all" && activeFolderId !== "none" ? activeFolderId : null),
+      exam_content_id: newExamContentId !== "none" ? newExamContentId : null,
+    });
     if (nb) {
       setSelectedNotebook(nb);
       setNewTitle("");
       setNewCategoryId("");
+      setNewFolderId("none");
+      setNewExamContentId("none");
       setShowNewForm(false);
     }
   };
+
+  const filteredNotebooks = activeFolderId === "all"
+    ? notebooks
+    : activeFolderId === "none"
+      ? notebooks.filter(n => !n.folder_id)
+      : notebooks.filter(n => n.folder_id === activeFolderId);
 
   return (
     <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
@@ -130,6 +166,35 @@ export function AIHubPage() {
         <p className="text-sm text-muted-foreground mt-1">
           Crie notebooks vinculados às suas matérias, gere exercícios e converse com um tutor IA.
         </p>
+      </div>
+
+      {/* Folders bar */}
+      <div className="mb-5 flex items-center gap-2 flex-wrap">
+        <FolderChip active={activeFolderId === "all"} onClick={() => setActiveFolderId("all")} label="Todos" icon={<Folders className="w-3.5 h-3.5" />} />
+        <FolderChip active={activeFolderId === "none"} onClick={() => setActiveFolderId("none")} label="Sem pasta" />
+        {folders.map(f => (
+          <FolderChip
+            key={f.id}
+            active={activeFolderId === f.id}
+            onClick={() => setActiveFolderId(f.id)}
+            label={f.name}
+            icon={<Folder className="w-3.5 h-3.5" />}
+            onRename={async () => {
+              const name = prompt("Renomear pasta", f.name);
+              if (name && name.trim()) await renameFolder(f.id, name.trim());
+            }}
+            onDelete={async () => {
+              if (confirm(`Excluir pasta "${f.name}"? Notebooks ficarão sem pasta.`)) {
+                await deleteFolder(f.id);
+                if (activeFolderId === f.id) setActiveFolderId("all");
+              }
+            }}
+          />
+        ))}
+        <button onClick={() => { setNewFolderName(""); setFolderModalOpen(true); }}
+          className="px-3 py-1.5 rounded-xl neu-btn text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+          <FolderPlus className="w-3.5 h-3.5" /> Nova pasta
+        </button>
       </div>
 
       <AnimatePresence>
@@ -161,6 +226,26 @@ export function AIHubPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Pasta</Label>
+                <Select value={newFolderId} onValueChange={setNewFolderId}>
+                  <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue placeholder="Sem pasta" /></SelectTrigger>
+                  <SelectContent className="bg-popover border-border/30">
+                    <SelectItem value="none">Sem pasta</SelectItem>
+                    {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Vínculo granular (Prova · Conteúdo / Subconteúdo)</Label>
+                <Select value={newExamContentId} onValueChange={setNewExamContentId}>
+                  <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue placeholder="Sem vínculo" /></SelectTrigger>
+                  <SelectContent className="bg-popover border-border/30 max-h-72">
+                    <SelectItem value="none">Sem vínculo</SelectItem>
+                    {examContentOpts.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <Button onClick={handleCreate} className="mt-4 bg-primary text-primary-foreground glow-pink">
               <Plus className="w-4 h-4 mr-2" /> Criar Notebook
@@ -177,26 +262,81 @@ export function AIHubPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading && <p className="text-sm text-muted-foreground col-span-full">Carregando...</p>}
-        {notebooks.map(nb => {
+        {filteredNotebooks.length === 0 && !loading && (
+          <p className="text-sm text-muted-foreground col-span-full">Nenhum notebook nesta pasta.</p>
+        )}
+        {filteredNotebooks.map(nb => {
           const cat = categories.find(c => c.id === nb.category_id);
+          const folder = folders.find(f => f.id === nb.folder_id);
           return (
             <motion.div key={nb.id} whileHover={{ scale: 1.02 }} className="bg-card rounded-2xl p-5 border border-border/30 cursor-pointer hover:border-primary/30 transition-all" onClick={() => setSelectedNotebook(nb)}>
               <div className="flex items-start justify-between mb-3">
                 <BookOpen className="w-6 h-6 text-primary" />
-                <button onClick={e => { e.stopPropagation(); deleteNotebook(nb.id); }} className="text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                  <Select value={nb.folder_id ?? "none"} onValueChange={(v) => updateNotebook(nb.id, { folder_id: v === "none" ? null : v } as any)}>
+                    <SelectTrigger className="h-7 w-auto px-2 py-0 border-0 bg-transparent hover:bg-muted/40 text-[10px]">
+                      <SelectValue placeholder="Pasta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem pasta</SelectItem>
+                      {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <button onClick={() => deleteNotebook(nb.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
               <h3 className="text-base font-display font-semibold text-foreground">{nb.title}</h3>
-              {cat && (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                  <span className="text-xs text-muted-foreground">{cat.name}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {cat && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                    <span className="text-xs text-muted-foreground">{cat.name}</span>
+                  </div>
+                )}
+                {folder && (
+                  <span className="text-[10px] flex items-center gap-1 text-muted-foreground"><Folder className="w-3 h-3" /> {folder.name}</span>
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground mt-2">{new Date(nb.updated_at).toLocaleDateString("pt-BR")}</p>
             </motion.div>
           );
         })}
       </div>
+
+      <Dialog open={folderModalOpen} onOpenChange={setFolderModalOpen}>
+        <DialogContent className="bg-card neu-flat z-[120]">
+          <DialogHeader><DialogTitle>Nova Pasta</DialogTitle></DialogHeader>
+          <Input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nome da pasta" className="bg-secondary border-border/50" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderModalOpen(false)}>Cancelar</Button>
+            <Button onClick={async () => {
+              if (!newFolderName.trim()) return;
+              const f = await addFolder(newFolderName.trim());
+              setFolderModalOpen(false);
+              if (f) setActiveFolderId(f.id);
+            }} className="bg-primary text-primary-foreground">Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function FolderChip({ active, onClick, label, icon, onRename, onDelete }: {
+  active: boolean; onClick: () => void; label: string; icon?: React.ReactNode;
+  onRename?: () => void; onDelete?: () => void;
+}) {
+  return (
+    <div className={`group flex items-center gap-1 rounded-xl text-xs transition-all ${active ? "neu-pressed text-primary" : "neu-btn text-muted-foreground hover:text-foreground"}`}>
+      <button onClick={onClick} className="px-3 py-1.5 flex items-center gap-1.5">
+        {icon}{label}
+      </button>
+      {onRename && (
+        <button onClick={onRename} className="opacity-0 group-hover:opacity-100 pr-1 text-muted-foreground hover:text-foreground"><Pencil className="w-3 h-3" /></button>
+      )}
+      {onDelete && (
+        <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 pr-2 text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+      )}
     </div>
   );
 }

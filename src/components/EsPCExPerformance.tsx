@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Target, Plus, Trash2, TrendingUp, Radar as RadarIcon, X, BookOpen,
-  ChevronRight, ChevronDown, Pencil, History,
+  ChevronRight, ChevronDown, Pencil, History, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNotebooks } from "@/hooks/useNotebooks";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from "recharts";
 
@@ -32,6 +33,67 @@ interface QuizSession {
 
 const db = supabase as any;
 
+/* ====== Effective metrics: if content has subs, totals = sum of subs ====== */
+function effective(c: Content, children: Content[]) {
+  if (children.length === 0) {
+    return {
+      total: c.total_questions, correct: c.correct, wrong: c.wrong, post: c.post_questions,
+      hasSubs: false,
+    };
+  }
+  const total = children.reduce((s, x) => s + (x.total_questions || 0), 0);
+  const correct = children.reduce((s, x) => s + (x.correct || 0), 0);
+  const wrong = children.reduce((s, x) => s + (x.wrong || 0), 0);
+  const post = children.reduce((s, x) => s + (x.post_questions || 0), 0);
+  return { total, correct, wrong, post, hasSubs: true };
+}
+
+/* ====== Focus-safe inputs (local state, push on blur) ====== */
+const DebouncedText = memo(function DebouncedText({
+  value, onCommit, className, disabled,
+}: { value: string; onCommit: (v: string) => void; className?: string; disabled?: boolean }) {
+  const [local, setLocal] = useState(value);
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setLocal(value); }, [value]);
+  return (
+    <Input
+      value={local}
+      disabled={disabled}
+      onFocus={() => { focused.current = true; }}
+      onChange={e => setLocal(e.target.value)}
+      onBlur={() => { focused.current = false; if (local !== value) onCommit(local); }}
+      className={className}
+    />
+  );
+});
+
+const DebouncedNum = memo(function DebouncedNum({
+  label, value, onCommit, disabled,
+}: { label: string; value: number; onCommit: (v: number) => void; disabled?: boolean }) {
+  const [local, setLocal] = useState(String(value));
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setLocal(String(value)); }, [value]);
+  return (
+    <div>
+      <Label className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <Input
+        type="number" min={0}
+        value={local}
+        disabled={disabled}
+        onFocus={() => { focused.current = true; }}
+        onChange={e => setLocal(e.target.value)}
+        onBlur={() => {
+          focused.current = false;
+          const v = Math.max(0, parseInt(local || "0", 10));
+          if (v !== value) onCommit(v);
+        }}
+        className={`bg-card neu-flat border-0 h-8 text-xs mt-0.5 ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+      />
+    </div>
+  );
+});
+
+/* ============================================================ */
 export function PerformancePage() {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -40,13 +102,13 @@ export function PerformancePage() {
   const [contents, setContents] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterExamId, setFilterExamId] = useState<string>("all");
+  const [filterContentName, setFilterContentName] = useState<string>("all");
   const [drawerExamId, setDrawerExamId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Exam | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const fetchAll = async () => {
     if (!user) return;
-    setLoading(true);
     const { data: e } = await db.from("espcex_exams").select("*").eq("user_id", user.id).order("exam_date", { ascending: false });
     const { data: c } = await db.from("espcex_contents").select("*").eq("user_id", user.id);
     setExams(e ?? []);
@@ -57,50 +119,87 @@ export function PerformancePage() {
   useEffect(() => { fetchAll(); }, [user]);
 
   const removeExam = async (id: string) => {
+    setDrawerExamId(null);
     await db.from("espcex_exams").delete().eq("id", id);
     await db.from("espcex_contents").delete().eq("exam_id", id);
-    setDrawerExamId(null);
     fetchAll();
   };
 
-  // ---- Filter-aware data ----
+  const topContents = useMemo(() => contents.filter(c => !c.parent_id), [contents]);
   const filteredExams = useMemo(
     () => filterExamId === "all" ? exams : exams.filter(e => e.id === filterExamId),
     [exams, filterExamId]
   );
-  // Only top-level contents enter the radar/line chart; sub-contents enrich the drawer view
-  const topContents = useMemo(() => contents.filter(c => !c.parent_id), [contents]);
-  const filteredContents = useMemo(
+  const filteredTopContents = useMemo(
     () => filterExamId === "all" ? topContents : topContents.filter(c => c.exam_id === filterExamId),
     [topContents, filterExamId]
   );
 
+  // Effective (sum-of-subs aware) value per top content
+  const effContents = useMemo(() => filteredTopContents.map(c => ({
+    ...c, _eff: effective(c, contents.filter(s => s.parent_id === c.id)),
+  })), [filteredTopContents, contents]);
+
+  // ====== Drill-in: if a content name is selected, switch charts to its sub-contents ======
+  const drillSubs = useMemo(() => {
+    if (filterContentName === "all") return null;
+    const parents = filteredTopContents.filter(c => c.name === filterContentName);
+    const subs = contents.filter(s => s.parent_id && parents.some(p => p.id === s.parent_id));
+    return subs;
+  }, [filterContentName, filteredTopContents, contents]);
+
   const evolution = useMemo(() => {
     const examsAsc = [...filteredExams].sort((a, b) => a.exam_date.localeCompare(b.exam_date));
-    const contentNames = Array.from(new Set(filteredContents.map(c => c.name)));
+    if (drillSubs) {
+      const subNames = Array.from(new Set(drillSubs.map(s => s.name)));
+      const data = examsAsc.map(ex => {
+        const row: any = { name: ex.name };
+        subNames.forEach(n => {
+          const subsOnExam = drillSubs.filter(s => s.name === n && s.exam_id === ex.id);
+          const t = subsOnExam.reduce((a, b) => a + b.total_questions, 0);
+          const c = subsOnExam.reduce((a, b) => a + b.correct, 0);
+          if (t > 0) row[n] = Math.round((c / t) * 100);
+        });
+        return row;
+      });
+      return { data, contentNames: subNames };
+    }
+    const contentNames = Array.from(new Set(effContents.map(c => c.name)));
     const data = examsAsc.map(ex => {
       const row: any = { name: ex.name };
       contentNames.forEach(n => {
-        const c = filteredContents.find(cc => cc.exam_id === ex.id && cc.name === n);
-        if (c && c.total_questions > 0) row[n] = Math.round((c.correct / c.total_questions) * 100);
+        const c = effContents.find(cc => cc.exam_id === ex.id && cc.name === n);
+        if (c && c._eff.total > 0) row[n] = Math.round((c._eff.correct / c._eff.total) * 100);
       });
       return row;
     });
     return { data, contentNames };
-  }, [filteredExams, filteredContents]);
+  }, [filteredExams, effContents, drillSubs]);
 
   const radarData = useMemo(() => {
     const byName = new Map<string, { total: number; correct: number }>();
-    filteredContents.forEach(c => {
-      const e = byName.get(c.name) ?? { total: 0, correct: 0 };
-      e.total += c.total_questions; e.correct += c.correct;
-      byName.set(c.name, e);
-    });
+    if (drillSubs) {
+      drillSubs.forEach(s => {
+        const e = byName.get(s.name) ?? { total: 0, correct: 0 };
+        e.total += s.total_questions; e.correct += s.correct;
+        byName.set(s.name, e);
+      });
+    } else {
+      effContents.forEach(c => {
+        const e = byName.get(c.name) ?? { total: 0, correct: 0 };
+        e.total += c._eff.total; e.correct += c._eff.correct;
+        byName.set(c.name, e);
+      });
+    }
     return Array.from(byName.entries()).map(([name, v]) => ({
-      content: name,
-      pct: v.total > 0 ? Math.round((v.correct / v.total) * 100) : 0,
+      content: name, pct: v.total > 0 ? Math.round((v.correct / v.total) * 100) : 0,
     }));
-  }, [filteredContents]);
+  }, [effContents, drillSubs]);
+
+  // List of unique top content names for the drill-in filter
+  const contentNameOptions = useMemo(() => {
+    return Array.from(new Set(filteredTopContents.map(c => c.name)));
+  }, [filteredTopContents]);
 
   const tickColor = theme === "dark" ? "hsl(0 0% 50%)" : "hsl(210 10% 50%)";
   const gridColor = theme === "dark" ? "hsl(160 6% 20%)" : "hsl(35 15% 75%)";
@@ -108,6 +207,15 @@ export function PerformancePage() {
   const radarColor = theme === "dark" ? "hsl(186 100% 50%)" : "hsl(168 55% 32%)";
 
   const drawerExam = drawerExamId ? exams.find(e => e.id === drawerExamId) ?? null : null;
+
+  const handleEditFromDrawer = (e: Exam) => {
+    // FIX: close drawer FIRST, then open modal on next tick to avoid stacked backdrops/blur
+    setDrawerExamId(null);
+    setTimeout(() => {
+      setEditing(e);
+      setModalOpen(true);
+    }, 220);
+  };
 
   return (
     <div className="flex-1 p-6 lg:p-12 overflow-y-auto pt-24">
@@ -117,7 +225,7 @@ export function PerformancePage() {
           <h2 className="text-2xl lg:text-3xl font-display font-bold text-foreground mt-1 flex items-center gap-3">
             <Target className="w-8 h-8 text-primary" /> Desempenho
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Acompanhe o desempenho em provas anteriores por conteúdo.</p>
+          <p className="text-sm text-muted-foreground mt-1">Acompanhe o desempenho em provas anteriores por conteúdo e subconteúdo.</p>
         </div>
         <Button onClick={() => { setEditing(null); setModalOpen(true); }} className="bg-primary text-primary-foreground neu-raised">
           <Plus className="w-4 h-4 mr-1" /> Registrar Prova
@@ -125,46 +233,72 @@ export function PerformancePage() {
       </div>
 
       {exams.length > 0 && (
-        <div className="mb-6 flex items-center gap-3">
-          <Label className="text-xs text-muted-foreground">Filtrar gráficos:</Label>
-          <Select value={filterExamId} onValueChange={setFilterExamId}>
-            <SelectTrigger className="w-60 neu-pressed border-0"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Provas</SelectItem>
-              {exams.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        <div className="mb-6 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Prova:</Label>
+            <Select value={filterExamId} onValueChange={(v) => { setFilterExamId(v); setFilterContentName("all"); }}>
+              <SelectTrigger className="w-56 neu-pressed border-0"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Provas</SelectItem>
+                {exams.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {contentNameOptions.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1"><Layers className="w-3 h-3" /> Conteúdo:</Label>
+              <Select value={filterContentName} onValueChange={setFilterContentName}>
+                <SelectTrigger className="w-56 neu-pressed border-0"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos (visão macro)</SelectItem>
+                  {contentNameOptions.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 
       {(evolution.contentNames.length > 0 || radarData.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-card neu-flat rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-display font-semibold text-foreground">Evolução de acertos por conteúdo (%)</h3>
+              <h3 className="text-sm font-display font-semibold text-foreground">
+                {drillSubs ? `Evolução — subconteúdos de ${filterContentName} (%)` : "Evolução de acertos por conteúdo (%)"}
+              </h3>
             </div>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={evolution.data}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {evolution.contentNames.map((n, i) => (
-                    <Line key={n} type="monotone" dataKey={n} stroke={palette[i % palette.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                  ))}
-                </LineChart>
+                {drillSubs ? (
+                  <BarChart data={radarData.map(d => ({ name: d.content, pct: d.pct }))}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12 }} />
+                    <Bar dataKey="pct" name="Acertos %" fill={palette[0]} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                ) : (
+                  <LineChart data={evolution.data}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    {evolution.contentNames.map((n, i) => (
+                      <Line key={n} type="monotone" dataKey={n} stroke={palette[i % palette.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                    ))}
+                  </LineChart>
+                )}
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="bg-card neu-flat rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-1">
               <RadarIcon className="w-4 h-4 text-primary" />
               <h3 className="text-sm font-display font-semibold text-foreground">
-                Radar de acertos {filterExamId === "all" ? "(média geral)" : ""}
+                {drillSubs ? `Radar — subconteúdos de ${filterContentName}` : `Radar de acertos ${filterExamId === "all" ? "(média geral)" : ""}`}
               </h3>
             </div>
             <div className="h-72">
@@ -182,7 +316,6 @@ export function PerformancePage() {
         </div>
       )}
 
-      {/* Exam list (no accordion — opens side drawer) */}
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : exams.length === 0 ? (
@@ -193,8 +326,11 @@ export function PerformancePage() {
         <div className="flex flex-col gap-3">
           {exams.map((exam) => {
             const rows = topContents.filter(c => c.exam_id === exam.id);
-            const totalQ = rows.reduce((s, r) => s + (r.total_questions || 0), 0);
-            const totalC = rows.reduce((s, r) => s + (r.correct || 0), 0);
+            let totalQ = 0, totalC = 0;
+            rows.forEach(r => {
+              const eff = effective(r, contents.filter(s => s.parent_id === r.id));
+              totalQ += eff.total; totalC += eff.correct;
+            });
             const pct = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0;
             const nb = notebooks.find(n => n.id === exam.notebook_id);
             return (
@@ -223,12 +359,13 @@ export function PerformancePage() {
 
       <ExamDrawer
         exam={drawerExam}
-        contents={contents.filter(c => drawerExam && c.exam_id === drawerExam.id)}
+        allContents={contents}
         notebooks={notebooks}
         onClose={() => setDrawerExamId(null)}
-        onEdit={(e) => { setEditing(e); setModalOpen(true); }}
+        onEdit={handleEditFromDrawer}
         onDelete={removeExam}
-        onChanged={fetchAll}
+        onContentsChanged={(updater) => setContents(prev => updater(prev))}
+        refetch={fetchAll}
       />
 
       <ExamModal
@@ -244,15 +381,16 @@ export function PerformancePage() {
 
 /* =================== Exam Side Drawer =================== */
 function ExamDrawer({
-  exam, contents, notebooks, onClose, onEdit, onDelete, onChanged,
+  exam, allContents, notebooks, onClose, onEdit, onDelete, onContentsChanged, refetch,
 }: {
   exam: Exam | null;
-  contents: Content[];
+  allContents: Content[];
   notebooks: { id: string; title: string }[];
   onClose: () => void;
   onEdit: (e: Exam) => void;
   onDelete: (id: string) => void;
-  onChanged: () => void;
+  onContentsChanged: (updater: (prev: Content[]) => Content[]) => void;
+  refetch: () => void;
 }) {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<QuizSession[]>([]);
@@ -267,24 +405,35 @@ function ExamDrawer({
     })();
   }, [exam?.id, user]);
 
-  const updateContent = async (id: string, patch: Partial<Content>) => {
-    await db.from("espcex_contents").update(patch).eq("id", id);
-    onChanged();
+  const examContents = useMemo(
+    () => exam ? allContents.filter(c => c.exam_id === exam.id) : [],
+    [exam, allContents]
+  );
+
+  // Optimistic helpers
+  const optUpdate = (id: string, patch: Partial<Content>) => {
+    onContentsChanged(prev => prev.map(c => c.id === id ? { ...c, ...patch } as Content : c));
+    db.from("espcex_contents").update(patch).eq("id", id).then(({ error }: any) => {
+      if (error) { toast({ title: "Erro ao salvar", variant: "destructive" }); refetch(); }
+    });
   };
 
   const addContent = async (parentId: string | null) => {
     if (!user || !exam) return;
-    await db.from("espcex_contents").insert({
+    const { data } = await db.from("espcex_contents").insert({
       user_id: user.id, exam_id: exam.id, parent_id: parentId,
       name: parentId ? "Novo subconteúdo" : "Novo conteúdo",
       total_questions: 0, correct: 0, wrong: 0, post_questions: 0,
-    });
-    onChanged();
+    }).select().single();
+    if (data) {
+      onContentsChanged(prev => [...prev, data as Content]);
+      if (parentId) setExpanded(prev => { const n = new Set(prev); n.add(parentId); return n; });
+    }
   };
 
   const removeContent = async (id: string) => {
+    onContentsChanged(prev => prev.filter(c => c.id !== id && c.parent_id !== id));
     await db.from("espcex_contents").delete().eq("id", id);
-    onChanged();
   };
 
   const toggle = (id: string) => {
@@ -295,7 +444,7 @@ function ExamDrawer({
     });
   };
 
-  const topContents = contents.filter(c => !c.parent_id);
+  const topContents = examContents.filter(c => !c.parent_id);
   const nb = exam && notebooks.find(n => n.id === exam.notebook_id);
 
   return (
@@ -346,8 +495,9 @@ function ExamDrawer({
                     <p className="text-xs text-muted-foreground">Sem conteúdos.</p>
                   )}
                   {topContents.map(c => {
-                    const subs = contents.filter(s => s.parent_id === c.id);
-                    const pct = c.total_questions > 0 ? Math.round((c.correct / c.total_questions) * 100) : 0;
+                    const subs = examContents.filter(s => s.parent_id === c.id);
+                    const eff = effective(c, subs);
+                    const pct = eff.total > 0 ? Math.round((eff.correct / eff.total) * 100) : 0;
                     const isOpen = expanded.has(c.id);
                     return (
                       <div key={c.id} className="bg-background neu-pressed rounded-xl p-3">
@@ -355,19 +505,34 @@ function ExamDrawer({
                           <button onClick={() => toggle(c.id)} className="text-muted-foreground">
                             {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                           </button>
-                          <Input value={c.name} onChange={e => updateContent(c.id, { name: e.target.value })}
-                            className="bg-card neu-flat border-0 h-8 text-xs font-medium flex-1" />
+                          <DebouncedText
+                            value={c.name}
+                            onCommit={(v) => optUpdate(c.id, { name: v })}
+                            className="bg-card neu-flat border-0 h-8 text-xs font-medium flex-1"
+                          />
                           <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-semibold">{pct}%</span>
                           <button onClick={() => removeContent(c.id)} className="text-muted-foreground hover:text-destructive">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          <Num label="Total" v={c.total_questions} on={(v) => updateContent(c.id, { total_questions: v })} />
-                          <Num label="Acertos" v={c.correct} on={(v) => updateContent(c.id, { correct: v })} />
-                          <Num label="Erros" v={c.wrong} on={(v) => updateContent(c.id, { wrong: v })} />
-                          <Num label="Pós" v={c.post_questions} on={(v) => updateContent(c.id, { post_questions: v })} />
-                        </div>
+                        {eff.hasSubs ? (
+                          <div className="grid grid-cols-4 gap-2">
+                            <ReadOnlyNum label="Total" v={eff.total} />
+                            <ReadOnlyNum label="Acertos" v={eff.correct} />
+                            <ReadOnlyNum label="Erros" v={eff.wrong} />
+                            <ReadOnlyNum label="Pós" v={eff.post} />
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-4 gap-2">
+                            <DebouncedNum label="Total" value={c.total_questions} onCommit={(v) => optUpdate(c.id, { total_questions: v })} />
+                            <DebouncedNum label="Acertos" value={c.correct} onCommit={(v) => optUpdate(c.id, { correct: v })} />
+                            <DebouncedNum label="Erros" value={c.wrong} onCommit={(v) => optUpdate(c.id, { wrong: v })} />
+                            <DebouncedNum label="Pós" value={c.post_questions} onCommit={(v) => optUpdate(c.id, { post_questions: v })} />
+                          </div>
+                        )}
+                        {eff.hasSubs && (
+                          <p className="text-[10px] text-muted-foreground mt-1.5">⚙ Valores calculados a partir dos subconteúdos.</p>
+                        )}
 
                         {isOpen && (
                           <div className="mt-3 pl-4 border-l border-border/30 flex flex-col gap-2">
@@ -376,17 +541,20 @@ function ExamDrawer({
                               return (
                                 <div key={s.id} className="bg-card neu-flat rounded-lg p-2">
                                   <div className="flex items-center gap-2 mb-1.5">
-                                    <Input value={s.name} onChange={e => updateContent(s.id, { name: e.target.value })}
-                                      className="bg-background neu-pressed border-0 h-7 text-[11px] flex-1" />
+                                    <DebouncedText
+                                      value={s.name}
+                                      onCommit={(v) => optUpdate(s.id, { name: v })}
+                                      className="bg-background neu-pressed border-0 h-7 text-[11px] flex-1"
+                                    />
                                     <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-semibold">{sp}%</span>
                                     <button onClick={() => removeContent(s.id)} className="text-muted-foreground hover:text-destructive">
                                       <Trash2 className="w-3 h-3" />
                                     </button>
                                   </div>
                                   <div className="grid grid-cols-3 gap-1.5">
-                                    <Num label="Total" v={s.total_questions} on={(v) => updateContent(s.id, { total_questions: v })} />
-                                    <Num label="Acertos" v={s.correct} on={(v) => updateContent(s.id, { correct: v })} />
-                                    <Num label="Erros" v={s.wrong} on={(v) => updateContent(s.id, { wrong: v })} />
+                                    <DebouncedNum label="Total" value={s.total_questions} onCommit={(v) => optUpdate(s.id, { total_questions: v })} />
+                                    <DebouncedNum label="Acertos" value={s.correct} onCommit={(v) => optUpdate(s.id, { correct: v })} />
+                                    <DebouncedNum label="Erros" value={s.wrong} onCommit={(v) => optUpdate(s.id, { wrong: v })} />
                                   </div>
                                 </div>
                               );
@@ -436,7 +604,21 @@ function ExamDrawer({
   );
 }
 
-/* =================== Create / Edit Modal =================== */
+function ReadOnlyNum({ label, v }: { label: string; v: number }) {
+  return (
+    <div>
+      <Label className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <div className="bg-card/60 rounded-md h-8 text-xs mt-0.5 px-2 flex items-center text-foreground/80 border border-border/20">
+        {v}
+      </div>
+    </div>
+  );
+}
+
+/* =================== Create / Edit Modal (nested draft) =================== */
+interface DraftSub { name: string; total: number; correct: number; }
+interface DraftContent { name: string; total: number; correct: number; subs: DraftSub[]; }
+
 function ExamModal({
   open, editing, notebooks, onClose, onSaved,
 }: {
@@ -451,9 +633,7 @@ function ExamModal({
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
   const [notebookId, setNotebookId] = useState<string>("none");
-  const [draftContents, setDraftContents] = useState<{ name: string; total: number; correct: number }[]>([
-    { name: "", total: 0, correct: 0 },
-  ]);
+  const [drafts, setDrafts] = useState<DraftContent[]>([{ name: "", total: 0, correct: 0, subs: [] }]);
 
   useEffect(() => {
     if (open) {
@@ -461,7 +641,7 @@ function ExamModal({
       setDate(editing?.exam_date ?? "");
       setNotes(editing?.notes ?? "");
       setNotebookId(editing?.notebook_id ?? "none");
-      setDraftContents(editing ? [] : [{ name: "", total: 0, correct: 0 }]);
+      setDrafts(editing ? [] : [{ name: "", total: 0, correct: 0, subs: [] }]);
     }
   }, [open, editing]);
 
@@ -483,22 +663,36 @@ function ExamModal({
       const { data: exam, error } = await db.from("espcex_exams")
         .insert({ ...payload, user_id: user.id }).select().single();
       if (error || !exam) { toast({ title: "Erro ao criar prova", description: error?.message, variant: "destructive" }); return; }
-      const valid = draftContents.filter(c => c.name.trim());
-      if (valid.length > 0) {
-        await db.from("espcex_contents").insert(valid.map(c => ({
-          user_id: user.id, exam_id: exam.id, name: c.name.trim(),
-          total_questions: c.total, correct: c.correct,
-          wrong: Math.max(0, c.total - c.correct), post_questions: 0,
-        })));
+      // Insert parents, then subs
+      for (const d of drafts.filter(d => d.name.trim())) {
+        const totalForParent = d.subs.length > 0 ? d.subs.reduce((s, x) => s + x.total, 0) : d.total;
+        const correctForParent = d.subs.length > 0 ? d.subs.reduce((s, x) => s + x.correct, 0) : d.correct;
+        const { data: parent } = await db.from("espcex_contents").insert({
+          user_id: user.id, exam_id: exam.id, name: d.name.trim(),
+          total_questions: totalForParent, correct: correctForParent,
+          wrong: Math.max(0, totalForParent - correctForParent), post_questions: 0,
+        }).select().single();
+        if (parent && d.subs.length > 0) {
+          await db.from("espcex_contents").insert(d.subs.filter(s => s.name.trim()).map(s => ({
+            user_id: user.id, exam_id: exam.id, parent_id: parent.id, name: s.name.trim(),
+            total_questions: s.total, correct: s.correct,
+            wrong: Math.max(0, s.total - s.correct), post_questions: 0,
+          })));
+        }
       }
       toast({ title: "Prova registrada!" });
     }
     onSaved();
   };
 
+  const setDraft = (idx: number, patch: Partial<DraftContent>) =>
+    setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, ...patch } : d));
+  const setSub = (di: number, si: number, patch: Partial<DraftSub>) =>
+    setDrafts(prev => prev.map((d, i) => i === di ? { ...d, subs: d.subs.map((s, j) => j === si ? { ...s, ...patch } : s) } : d));
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl bg-card neu-flat max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl bg-card neu-flat max-h-[90vh] overflow-y-auto z-[120]">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar Prova" : "Registrar Prova"}</DialogTitle>
         </DialogHeader>
@@ -534,43 +728,70 @@ function ExamModal({
         {!editing && (
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Conteúdos iniciais</Label>
-              <Button onClick={() => setDraftContents(prev => [...prev, { name: "", total: 0, correct: 0 }])}
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Conteúdos e Subconteúdos</Label>
+              <Button onClick={() => setDrafts(prev => [...prev, { name: "", total: 0, correct: 0, subs: [] }])}
                 variant="outline" size="sm" className="neu-btn text-xs">
-                <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar
+                <Plus className="w-3.5 h-3.5 mr-1" /> Conteúdo
               </Button>
             </div>
-            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-              {draftContents.map((c, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_80px_80px_auto] gap-2 items-end bg-background neu-pressed rounded-xl p-3">
-                  <div>
-                    <Label className="text-[10px] uppercase text-muted-foreground">Nome</Label>
-                    <Input value={c.name} onChange={e => {
-                      const v = e.target.value;
-                      setDraftContents(prev => prev.map((x, i) => i === idx ? { ...x, name: v } : x));
-                    }} placeholder="Ex: Matemática" className="bg-card neu-flat border-0 h-9 text-sm mt-1" />
+            <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1">
+              {drafts.map((d, idx) => {
+                const hasSubs = d.subs.length > 0;
+                return (
+                  <div key={idx} className="bg-background neu-pressed rounded-xl p-3">
+                    <div className="grid grid-cols-[1fr_80px_80px_auto] gap-2 items-end">
+                      <div>
+                        <Label className="text-[10px] uppercase text-muted-foreground">Conteúdo</Label>
+                        <Input value={d.name} onChange={e => setDraft(idx, { name: e.target.value })}
+                          placeholder="Ex: Matemática" className="bg-card neu-flat border-0 h-9 text-sm mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase text-muted-foreground">Total</Label>
+                        <Input type="number" min={0} disabled={hasSubs}
+                          value={hasSubs ? d.subs.reduce((s, x) => s + x.total, 0) : d.total}
+                          onChange={e => setDraft(idx, { total: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                          className={`bg-card neu-flat border-0 h-9 text-sm mt-1 ${hasSubs ? "opacity-60" : ""}`} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase text-muted-foreground">Acertos</Label>
+                        <Input type="number" min={0} disabled={hasSubs}
+                          value={hasSubs ? d.subs.reduce((s, x) => s + x.correct, 0) : d.correct}
+                          onChange={e => setDraft(idx, { correct: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                          className={`bg-card neu-flat border-0 h-9 text-sm mt-1 ${hasSubs ? "opacity-60" : ""}`} />
+                      </div>
+                      <button onClick={() => setDrafts(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-muted-foreground hover:text-destructive p-2"
+                        disabled={drafts.length === 1}>
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="mt-3 pl-3 border-l border-border/30 flex flex-col gap-2">
+                      {d.subs.map((s, si) => (
+                        <div key={si} className="grid grid-cols-[1fr_70px_70px_auto] gap-2 items-end bg-card neu-flat rounded-lg p-2">
+                          <Input value={s.name} placeholder="Subconteúdo"
+                            onChange={e => setSub(idx, si, { name: e.target.value })}
+                            className="bg-background neu-pressed border-0 h-8 text-xs" />
+                          <Input type="number" min={0} value={s.total}
+                            onChange={e => setSub(idx, si, { total: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                            className="bg-background neu-pressed border-0 h-8 text-xs" />
+                          <Input type="number" min={0} value={s.correct}
+                            onChange={e => setSub(idx, si, { correct: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                            className="bg-background neu-pressed border-0 h-8 text-xs" />
+                          <button onClick={() => setDraft(idx, { subs: d.subs.filter((_, j) => j !== si) })}
+                            className="text-muted-foreground hover:text-destructive p-1">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <Button size="sm" variant="ghost" className="text-[11px] h-7 self-start"
+                        onClick={() => setDraft(idx, { subs: [...d.subs, { name: "", total: 0, correct: 0 }] })}>
+                        <Plus className="w-3 h-3 mr-1" /> Subconteúdo
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-[10px] uppercase text-muted-foreground">Total</Label>
-                    <Input type="number" min={0} value={c.total} onChange={e => {
-                      const v = Math.max(0, parseInt(e.target.value || "0", 10));
-                      setDraftContents(prev => prev.map((x, i) => i === idx ? { ...x, total: v } : x));
-                    }} className="bg-card neu-flat border-0 h-9 text-sm mt-1" />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] uppercase text-muted-foreground">Acertos</Label>
-                    <Input type="number" min={0} value={c.correct} onChange={e => {
-                      const v = Math.max(0, parseInt(e.target.value || "0", 10));
-                      setDraftContents(prev => prev.map((x, i) => i === idx ? { ...x, correct: v } : x));
-                    }} className="bg-card neu-flat border-0 h-9 text-sm mt-1" />
-                  </div>
-                  <button onClick={() => setDraftContents(prev => prev.filter((_, i) => i !== idx))}
-                    className="text-muted-foreground hover:text-destructive p-2"
-                    disabled={draftContents.length === 1}>
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -581,16 +802,5 @@ function ExamModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function Num({ label, v, on }: { label: string; v: number; on: (v: number) => void }) {
-  return (
-    <div>
-      <Label className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</Label>
-      <Input type="number" min={0} value={v}
-        onChange={e => on(Math.max(0, parseInt(e.target.value || "0", 10)))}
-        className="bg-card neu-flat border-0 h-8 text-xs mt-0.5" />
-    </div>
   );
 }

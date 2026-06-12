@@ -564,6 +564,12 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const [feynmanInput, setFeynmanInput] = useState("");
   const [feynmanResult, setFeynmanResult] = useState("");
   const [feynmanStreaming, setFeynmanStreaming] = useState(false);
+  // Quiz options
+  const [quizOptionsOpen, setQuizOptionsOpen] = useState(false);
+  const [quizCount, setQuizCount] = useState(10);
+  const [quizDifficulty, setQuizDifficulty] = useState<string>("Médio");
+  // Review mode
+  const [reviewSession, setReviewSession] = useState<any | null>(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -574,7 +580,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   };
   useEffect(() => { if (notebook.id) loadHistory(); }, [notebook.id]);
 
-  const handleQuizFinished = async (score: number, total: number) => {
+  const handleQuizFinished = async (score: number, total: number, answers: (number | null)[]) => {
     if (!user) return;
     const { data: linkedExams } = await (supabase as any).from("espcex_exams")
       .select("id").eq("user_id", user.id).eq("notebook_id", notebook.id);
@@ -583,6 +589,8 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
     await (supabase as any).from("quiz_sessions").insert({
       user_id: user.id, notebook_id: notebook.id, exam_id: examId,
       total_questions: total, correct: score, topic: notebook.title,
+      questions: quizQuestions ?? [], answers, difficulty: quizDifficulty,
+      content_id: notebook.exam_content_id ?? null,
     });
 
     if (examId) {
@@ -630,17 +638,26 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleGenerateQuiz = async () => {
+  const openQuizOptions = () => {
     if (sources.length === 0) {
       toast({ title: "Sem fontes", description: "Adicione ou sincronize fontes antes de gerar quiz.", variant: "destructive" });
       return;
     }
+    setQuizOptionsOpen(true);
+  };
+
+  const handleGenerateQuiz = async () => {
+    setQuizOptionsOpen(false);
     setGeneratingQuiz(true);
     try {
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ type: "quiz", sources: sources.map(s => ({ title: s.title, content: s.content })), interleaving }),
+        body: JSON.stringify({
+          type: "quiz",
+          sources: sources.map(s => ({ title: s.title, content: s.content })),
+          interleaving, count: quizCount, difficulty: quizDifficulty,
+        }),
       });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));

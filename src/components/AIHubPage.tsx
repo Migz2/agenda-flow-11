@@ -823,7 +823,15 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
 
         {activeTab === "exercises" && (
           <div>
-            {quizQuestions && quizQuestions.length > 0 ? (
+            {reviewSession ? (
+              <QuizView
+                questions={(reviewSession.questions ?? []) as QuizQuestion[]}
+                sources={sources.map(s => ({ title: s.title, content: s.content }))}
+                onBack={() => setReviewSession(null)}
+                reviewMode
+                initialAnswers={(reviewSession.answers ?? []) as (number | null)[]}
+              />
+            ) : quizQuestions && quizQuestions.length > 0 ? (
               <QuizView
                 questions={quizQuestions}
                 sources={sources.map(s => ({ title: s.title, content: s.content }))}
@@ -860,18 +868,33 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
               <div className="flex flex-col gap-2">
                 {history.map((h: any) => {
                   const pct = h.total_questions > 0 ? Math.round((h.correct / h.total_questions) * 100) : 0;
+                  const reviewable = Array.isArray(h.questions) && h.questions.length > 0;
                   return (
-                    <div key={h.id} className="bg-card neu-flat rounded-xl p-3 flex items-center justify-between gap-3">
+                    <button
+                      key={h.id}
+                      disabled={!reviewable}
+                      onClick={() => {
+                        if (!reviewable) return;
+                        setReviewSession(h);
+                        setQuizQuestions(null);
+                        setActiveTab("exercises");
+                      }}
+                      className={`bg-card neu-flat rounded-xl p-3 flex items-center justify-between gap-3 text-left transition-all ${reviewable ? "cursor-pointer hover:scale-[1.005]" : "opacity-70 cursor-not-allowed"}`}
+                    >
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
                           {h.espcex_exams?.name ? `Prova: ${h.espcex_exams.name}` : "Quiz livre"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">{new Date(h.created_at).toLocaleString("pt-BR")}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {new Date(h.created_at).toLocaleString("pt-BR")}
+                          {h.difficulty ? ` · ${h.difficulty}` : ""}
+                          {reviewable ? " · clique para revisar" : " · sem revisão (legado)"}
+                        </p>
                       </div>
                       <span className="px-3 py-1 rounded-xl neu-pressed text-xs font-semibold text-primary">
                         {h.correct}/{h.total_questions} · {pct}%
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

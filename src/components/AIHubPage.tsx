@@ -367,33 +367,46 @@ function SourceViewerModal({ source, onClose }: { source: any; onClose: () => vo
 }
 
 /* ========== Quiz UI ========== */
-function QuizView({ questions, sources, onBack, onFinish }: { questions: QuizQuestion[]; sources: { title: string; content: string }[]; onBack: () => void; onFinish?: (score: number, total: number) => void }) {
+function QuizView({ questions, sources, onBack, onFinish, reviewMode, initialAnswers }: {
+  questions: QuizQuestion[];
+  sources: { title: string; content: string }[];
+  onBack: () => void;
+  onFinish?: (score: number, total: number, answers: (number | null)[]) => void;
+  reviewMode?: boolean;
+  initialAnswers?: (number | null)[];
+}) {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [answers, setAnswers] = useState<(number | null)[]>(
+    initialAnswers ?? Array(questions.length).fill(null)
+  );
   const [showExplanation, setShowExplanation] = useState(false);
   const [explainText, setExplainText] = useState("");
   const [explaining, setExplaining] = useState(false);
-  const [score, setScore] = useState(0);
-  const [answered, setAnswered] = useState(false);
   const [reported, setReported] = useState(false);
 
   const q = questions[currentIdx];
   if (!q) return null;
 
-  const isCorrect = selectedOption === q.correctIndex;
+  const selectedOption = answers[currentIdx];
+  const answered = selectedOption !== null || reviewMode;
+  const score = answers.reduce<number>((s, a, i) => s + (a !== null && a === questions[i].correctIndex ? 1 : 0), 0);
 
   const handleSelect = (idx: number) => {
     if (answered) return;
-    setSelectedOption(idx);
-    setAnswered(true);
-    if (idx === q.correctIndex) setScore(s => s + 1);
+    setAnswers(prev => prev.map((a, i) => i === currentIdx ? idx : a));
   };
 
   const handleNext = () => {
     if (currentIdx < questions.length - 1) {
       setCurrentIdx(i => i + 1);
-      setSelectedOption(null);
-      setAnswered(false);
+      setShowExplanation(false);
+      setExplainText("");
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIdx > 0) {
+      setCurrentIdx(i => i - 1);
       setShowExplanation(false);
       setExplainText("");
     }
@@ -418,20 +431,20 @@ function QuizView({ questions, sources, onBack, onFinish }: { questions: QuizQue
     });
   };
 
-  const finished = currentIdx === questions.length - 1 && answered;
+  const finished = !reviewMode && currentIdx === questions.length - 1 && selectedOption !== null;
 
   useEffect(() => {
     if (finished && !reported && onFinish) {
       setReported(true);
-      onFinish(score, questions.length);
+      onFinish(score, questions.length, answers);
     }
-  }, [finished, reported, onFinish, score, questions.length]);
+  }, [finished, reported, onFinish, score, questions.length, answers]);
 
   return (
     <div className="flex flex-col gap-4">
       {/* Progress */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{currentIdx + 1} / {questions.length}</span>
+        <span className="text-xs text-muted-foreground">{currentIdx + 1} / {questions.length}{reviewMode ? " · Revisão" : ""}</span>
         <span className="text-xs text-muted-foreground">Acertos: {score}</span>
       </div>
       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
@@ -476,7 +489,12 @@ function QuizView({ questions, sources, onBack, onFinish }: { questions: QuizQue
 
       {/* Actions */}
       <div className="flex gap-2 mt-2">
-        {answered && !finished && (
+        {reviewMode && currentIdx > 0 && (
+          <Button onClick={handlePrev} variant="outline" className="neu-btn">
+            <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+          </Button>
+        )}
+        {answered && currentIdx < questions.length - 1 && (
           <Button onClick={handleNext} className="bg-primary text-primary-foreground glow-pink flex-1">
             Próxima <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
@@ -485,6 +503,9 @@ function QuizView({ questions, sources, onBack, onFinish }: { questions: QuizQue
           <Button onClick={handleExplain} variant="outline" className="neu-btn text-xs">
             <MessageCircle className="w-3.5 h-3.5 mr-1" /> Explicar
           </Button>
+        )}
+        {reviewMode && currentIdx === questions.length - 1 && (
+          <Button onClick={onBack} variant="outline" className="neu-btn">Sair da revisão</Button>
         )}
       </div>
 

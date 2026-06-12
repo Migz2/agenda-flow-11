@@ -7,6 +7,8 @@ export interface Notebook {
   user_id: string;
   title: string;
   category_id: string | null;
+  folder_id: string | null;
+  exam_content_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -65,12 +67,68 @@ export function useNotebooks() {
     return null;
   };
 
+  const addNotebookFull = async (payload: { title: string; category_id?: string | null; folder_id?: string | null; exam_content_id?: string | null }) => {
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from("notebooks")
+      .insert({ user_id: user.id, ...payload } as any)
+      .select()
+      .single();
+    if (!error && data) {
+      await fetchNotebooks();
+      return data as unknown as Notebook;
+    }
+    return null;
+  };
+
+  const updateNotebook = async (id: string, patch: Partial<Notebook>) => {
+    setNotebooks(prev => prev.map(n => n.id === id ? { ...n, ...patch } as Notebook : n));
+    await supabase.from("notebooks").update(patch as any).eq("id", id);
+  };
+
   const deleteNotebook = async (id: string) => {
     await supabase.from("notebooks").delete().eq("id", id);
     setNotebooks(prev => prev.filter(n => n.id !== id));
   };
 
-  return { notebooks, loading, addNotebook, deleteNotebook, refetch: fetchNotebooks };
+  return { notebooks, loading, addNotebook, addNotebookFull, updateNotebook, deleteNotebook, refetch: fetchNotebooks };
+}
+
+/* ========== Folders ========== */
+export interface NotebookFolder { id: string; user_id: string; name: string; created_at: string; }
+
+export function useNotebookFolders() {
+  const { user } = useAuth();
+  const [folders, setFolders] = useState<NotebookFolder[]>([]);
+
+  const fetch = useCallback(async () => {
+    if (!user) { setFolders([]); return; }
+    const { data } = await (supabase as any).from("notebook_folders")
+      .select("*").eq("user_id", user.id).order("created_at");
+    if (data) setFolders(data as NotebookFolder[]);
+  }, [user]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const addFolder = async (name: string) => {
+    if (!user) return null;
+    const { data } = await (supabase as any).from("notebook_folders")
+      .insert({ user_id: user.id, name }).select().single();
+    if (data) { setFolders(prev => [...prev, data as NotebookFolder]); return data as NotebookFolder; }
+    return null;
+  };
+
+  const renameFolder = async (id: string, name: string) => {
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+    await (supabase as any).from("notebook_folders").update({ name }).eq("id", id);
+  };
+
+  const deleteFolder = async (id: string) => {
+    setFolders(prev => prev.filter(f => f.id !== id));
+    await (supabase as any).from("notebook_folders").delete().eq("id", id);
+  };
+
+  return { folders, addFolder, renameFolder, deleteFolder, refetch: fetch };
 }
 
 export function useNotebookSources(notebookId: string | null) {

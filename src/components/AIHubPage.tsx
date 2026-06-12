@@ -2,19 +2,21 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain, Plus, Trash2, BookOpen, FileText, Link, Sparkles, Send, MessageSquare,
-  RefreshCw, X, ChevronLeft, Loader2, Upload, Eye, ChevronRight, MessageCircle, ThumbsUp, ThumbsDown, History
+  RefreshCw, X, ChevronLeft, Loader2, Upload, Eye, ChevronRight, MessageCircle, ThumbsUp, ThumbsDown, History,
+  Folder, FolderPlus, Folders, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useNotebooks, useNotebookSources, useChatMessages, type Notebook } from "@/hooks/useNotebooks";
+import { useNotebooks, useNotebookSources, useChatMessages, useNotebookFolders, type Notebook } from "@/hooks/useNotebooks";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomCategories } from "@/hooks/useTasks";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/study-ai`;
 

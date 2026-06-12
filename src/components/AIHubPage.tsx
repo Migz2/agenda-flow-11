@@ -983,6 +983,45 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
           </div>
         </div>
       )}
+
+      {/* Quiz options dialog */}
+      <Dialog open={quizOptionsOpen} onOpenChange={setQuizOptionsOpen}>
+        <DialogContent className="bg-card neu-flat z-[120] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Gerar Quiz</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Quantidade de questões</Label>
+              <Input type="number" min={1} max={30} value={quizCount}
+                onChange={e => setQuizCount(Math.max(1, Math.min(30, parseInt(e.target.value || "1", 10))))}
+                className="bg-secondary border-border/50 mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Dificuldade</Label>
+              <Select value={quizDifficulty} onValueChange={setQuizDifficulty}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Fácil">Fácil</SelectItem>
+                  <SelectItem value="Médio">Médio</SelectItem>
+                  <SelectItem value="Difícil">Difícil</SelectItem>
+                  <SelectItem value="Nível EsPCEx">Nível EsPCEx</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={interleaving} onChange={e => setInterleaving(e.target.checked)} className="rounded" />
+              Misturar tópicos (Interleaving)
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuizOptionsOpen(false)}>Cancelar</Button>
+            <Button onClick={handleGenerateQuiz} className="bg-primary text-primary-foreground glow-pink">
+              <Sparkles className="w-4 h-4 mr-1" /> Gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

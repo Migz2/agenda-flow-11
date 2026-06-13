@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BarChart3, LayoutList, Calendar, Brain, Sun, Moon, LogOut, Timer, User, Target, Settings } from "lucide-react";
+import { BarChart3, LayoutList, Calendar, Brain, Sun, Moon, LogOut, Timer, User, Target, Settings, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,6 +23,7 @@ const navItems = [
   { id: "planner", label: "Daily Planner", icon: LayoutList },
   { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "focus", label: "Foco", icon: Timer },
+  { id: "study", label: "Gerador de Rotina", icon: Sparkles },
   { id: "aihub", label: "AI Study Hub", icon: Brain },
 ];
 

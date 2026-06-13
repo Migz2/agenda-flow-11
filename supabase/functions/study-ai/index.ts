@@ -16,9 +16,12 @@ async function callAI(body: object) {
   });
   if (!response.ok) {
     const status = response.status;
+    let errBody = "";
+    try { errBody = await response.text(); } catch { /* ignore */ }
+    console.error("AI gateway error", status, errBody);
     if (status === 429) throw { status: 429, message: "Limite de requisições excedido. Tente novamente em alguns segundos." };
     if (status === 402) throw { status: 402, message: "Créditos insuficientes." };
-    throw { status: 500, message: "Erro no gateway de IA" };
+    throw { status: 500, message: `Erro no gateway de IA (${status}): ${errBody.slice(0, 300)}` };
   }
   return response;
 }
@@ -47,9 +50,33 @@ serve(async (req) => {
       });
     }
 
-    const { messages, mode, sources, type, question, interleaving, count, difficulty } = await req.json();
+    const { messages, mode, sources, type, question, interleaving, count, difficulty, topic } = await req.json();
 
     const sourcesText = (sources || []).map((s: any) => `[${s.title}]: ${s.content}`).join("\n\n");
+
+    if (type === "generate_source") {
+      if (!topic || typeof topic !== "string" || !topic.trim()) {
+        return new Response(JSON.stringify({ error: "Tópico obrigatório." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const systemPrompt = `Você é um pesquisador acadêmico. Escreva um texto explicativo denso, didático e bem estruturado sobre o tema solicitado pelo aluno, em português do Brasil, com formatação Markdown.
+Inclua: definição, conceitos-chave, fórmulas/exemplos quando aplicável, e um pequeno resumo no final.
+Tamanho alvo: 400-800 palavras.`;
+      const response = await callAI({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Tema: ${topic}` },
+        ],
+        stream: false,
+      });
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "";
+      return new Response(JSON.stringify({ title: topic, content }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (type === "quiz") {
       const interleavingNote = interleaving
@@ -61,7 +88,7 @@ serve(async (req) => {
         "Fácil": "Mantenha as questões em nível introdutório, com pegadinhas mínimas.",
         "Médio": "Equilibre questões diretas com aplicações práticas.",
         "Difícil": "Inclua questões com raciocínio multietapa e distratores fortes.",
-        "Nível EsPCEx": "Use o estilo da prova da EsPCEx: questões objetivas, técnicas, com nível de dificuldade alto, redação formal e enunciados curtos.",
+        "Extra-Difícil": "Nível máximo: questões com raciocínio multietapa, distratores muito fortes, enunciados técnicos e formais, estilo prova de concurso de alto nível.",
       }[diff] ?? "";
 
       const systemPrompt = `Você é um tutor especializado em gerar quizzes interativos.
@@ -108,9 +135,9 @@ Todas as perguntas em português do Brasil.`;
       try {
         const parsed = JSON.parse(content);
         return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      } catch {
-        console.error("Raw AI quiz response (parse failure):", content);
-        return new Response(JSON.stringify({ error: "Falha ao parsear quiz. Tente novamente." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (parseErr) {
+        console.error("Raw AI quiz response (parse failure):", content, parseErr);
+        return new Response(JSON.stringify({ error: "Falha ao parsear quiz. Tente novamente.", raw: content.slice(0, 500) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
@@ -181,6 +208,7 @@ Responda sempre em português do Brasil com formatação Markdown.`;
 
     return new Response(response.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
   } catch (e: any) {
+    console.error("study-ai error", e);
     const status = e?.status || 500;
     const message = e?.message || (e instanceof Error ? e.message : "Erro desconhecido");
     return new Response(JSON.stringify({ error: message }), {

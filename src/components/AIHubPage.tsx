@@ -110,6 +110,18 @@ export function AIHubPage() {
   const [examContentOpts, setExamContentOpts] = useState<{ id: string; label: string }[]>([]);
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  // Edit notebook modal
+  const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editFolderId, setEditFolderId] = useState<string>("none");
+  const [editExamContentId, setEditExamContentId] = useState<string>("none");
+  const [editCategoryId, setEditCategoryId] = useState<string>("none");
+  // Folder quiz
+  const [folderQuizLoading, setFolderQuizLoading] = useState(false);
+  const [folderQuizQuestions, setFolderQuizQuestions] = useState<QuizQuestion[] | null>(null);
+  const [folderQuizCount, setFolderQuizCount] = useState(10);
+  const [folderQuizDifficulty, setFolderQuizDifficulty] = useState("Médio");
+  const [folderQuizModalOpen, setFolderQuizModalOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -155,6 +167,81 @@ export function AIHubPage() {
       ? notebooks.filter(n => !n.folder_id)
       : notebooks.filter(n => n.folder_id === activeFolderId);
 
+  const openEditNotebook = (nb: Notebook) => {
+    setEditingNotebook(nb);
+    setEditTitle(nb.title);
+    setEditFolderId(nb.folder_id ?? "none");
+    setEditExamContentId(nb.exam_content_id ?? "none");
+    setEditCategoryId(nb.category_id ?? "none");
+  };
+
+  const saveEditNotebook = async () => {
+    if (!editingNotebook) return;
+    await updateNotebook(editingNotebook.id, {
+      title: editTitle.trim() || editingNotebook.title,
+      folder_id: editFolderId === "none" ? null : editFolderId,
+      exam_content_id: editExamContentId === "none" ? null : editExamContentId,
+      category_id: editCategoryId === "none" ? null : editCategoryId,
+    } as any);
+    setEditingNotebook(null);
+    toast({ title: "Notebook atualizado" });
+  };
+
+  const generateFolderQuiz = async () => {
+    if (activeFolderId === "all" || activeFolderId === "none") return;
+    setFolderQuizModalOpen(false);
+    setFolderQuizLoading(true);
+    try {
+      const folderNotebooks = notebooks.filter(n => n.folder_id === activeFolderId);
+      if (folderNotebooks.length === 0) {
+        toast({ title: "Pasta vazia", variant: "destructive" });
+        setFolderQuizLoading(false);
+        return;
+      }
+      const ids = folderNotebooks.map(n => n.id);
+      const { data: allSources } = await supabase
+        .from("notebook_sources").select("title,content,notebook_id").in("notebook_id", ids);
+      const sources = (allSources ?? []).map((s: any) => ({ title: s.title, content: s.content }));
+      if (sources.length === 0) {
+        toast({ title: "Sem fontes nessa pasta", variant: "destructive" });
+        setFolderQuizLoading(false);
+        return;
+      }
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ type: "quiz", sources, interleaving: true, count: folderQuizCount, difficulty: folderQuizDifficulty }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.questions) {
+        toast({ title: "Erro", description: data.error || "Falha ao gerar quiz", variant: "destructive" });
+      } else {
+        setFolderQuizQuestions(data.questions);
+      }
+    } catch {
+      toast({ title: "Erro de rede", variant: "destructive" });
+    }
+    setFolderQuizLoading(false);
+  };
+
+  if (folderQuizQuestions) {
+    return (
+      <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" /> Quiz da Pasta
+          </h2>
+          <Button variant="outline" size="sm" onClick={() => setFolderQuizQuestions(null)}>Fechar</Button>
+        </div>
+        <QuizView
+          questions={folderQuizQuestions}
+          sources={[]}
+          onBack={() => setFolderQuizQuestions(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
       <div className="mb-8">
@@ -195,6 +282,15 @@ export function AIHubPage() {
           className="px-3 py-1.5 rounded-xl neu-btn text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
           <FolderPlus className="w-3.5 h-3.5" /> Nova pasta
         </button>
+        {activeFolderId !== "all" && activeFolderId !== "none" && (
+          <button
+            onClick={() => setFolderQuizModalOpen(true)}
+            disabled={folderQuizLoading}
+            className="px-3 py-1.5 rounded-xl neu-btn text-xs text-primary flex items-center gap-1">
+            {folderQuizLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            Gerar Quiz da Pasta
+          </button>
+        )}
       </div>
 
       <AnimatePresence>
@@ -282,6 +378,7 @@ export function AIHubPage() {
                       {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <button onClick={() => openEditNotebook(nb)} className="text-muted-foreground hover:text-foreground" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => deleteNotebook(nb.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -315,6 +412,89 @@ export function AIHubPage() {
               setFolderModalOpen(false);
               if (f) setActiveFolderId(f.id);
             }} className="bg-primary text-primary-foreground">Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit notebook dialog */}
+      <Dialog open={!!editingNotebook} onOpenChange={(o) => !o && setEditingNotebook(null)}>
+        <DialogContent className="bg-card neu-flat z-[120]">
+          <DialogHeader><DialogTitle>Editar Notebook</DialogTitle></DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Título</Label>
+              <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-secondary border-border/50 mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Matéria</Label>
+              <Select value={editCategoryId} onValueChange={setEditCategoryId}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="none">Sem vínculo</SelectItem>
+                  {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Pasta</Label>
+              <Select value={editFolderId} onValueChange={setEditFolderId}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="none">Sem pasta</SelectItem>
+                  {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Vínculo granular (Prova · Conteúdo / Subconteúdo)</Label>
+              <Select value={editExamContentId} onValueChange={setEditExamContentId}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200] max-h-72">
+                  <SelectItem value="none">Sem vínculo</SelectItem>
+                  {examContentOpts.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingNotebook(null)}>Cancelar</Button>
+            <Button onClick={saveEditNotebook} className="bg-primary text-primary-foreground">Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Folder quiz options dialog */}
+      <Dialog open={folderQuizModalOpen} onOpenChange={setFolderQuizModalOpen}>
+        <DialogContent className="bg-card neu-flat z-[120] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Quiz da Pasta</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Quantidade de questões</Label>
+              <Input type="number" min={1} max={30} value={folderQuizCount}
+                onChange={e => setFolderQuizCount(Math.max(1, Math.min(30, parseInt(e.target.value || "1", 10))))}
+                className="bg-secondary border-border/50 mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Dificuldade</Label>
+              <Select value={folderQuizDifficulty} onValueChange={setFolderQuizDifficulty}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="Fácil">Fácil</SelectItem>
+                  <SelectItem value="Médio">Médio</SelectItem>
+                  <SelectItem value="Difícil">Difícil</SelectItem>
+                  <SelectItem value="Extra-Difícil">Extra-Difícil</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">Compila todas as fontes dos notebooks desta pasta e gera um quiz global com interleaving.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderQuizModalOpen(false)}>Cancelar</Button>
+            <Button onClick={generateFolderQuiz} className="bg-primary text-primary-foreground glow-pink">
+              <Sparkles className="w-4 h-4 mr-1" /> Gerar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -564,6 +744,10 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const [feynmanInput, setFeynmanInput] = useState("");
   const [feynmanResult, setFeynmanResult] = useState("");
   const [feynmanStreaming, setFeynmanStreaming] = useState(false);
+  // AI source generation
+  const [aiSourceOpen, setAiSourceOpen] = useState(false);
+  const [aiSourceTopic, setAiSourceTopic] = useState("");
+  const [aiSourceLoading, setAiSourceLoading] = useState(false);
   // Quiz options
   const [quizOptionsOpen, setQuizOptionsOpen] = useState(false);
   const [quizCount, setQuizCount] = useState(10);
@@ -620,6 +804,30 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
     if (!newSourceTitle.trim()) return;
     await addSource({ title: newSourceTitle, content: newSourceContent, source_type: newSourceUrl ? "link" : "manual", url: newSourceUrl });
     setNewSourceTitle(""); setNewSourceContent(""); setNewSourceUrl(""); setShowAddSource(false);
+  };
+
+  const handleGenerateAiSource = async () => {
+    if (!aiSourceTopic.trim() || aiSourceLoading) return;
+    setAiSourceLoading(true);
+    try {
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ type: "generate_source", topic: aiSourceTopic.trim() }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.content) {
+        toast({ title: "Erro", description: data.error || "Falha ao gerar fonte", variant: "destructive" });
+      } else {
+        await addSource({ title: `✨ ${data.title || aiSourceTopic.trim()}`, content: data.content, source_type: "ai_generated" });
+        toast({ title: "Fonte gerada", description: "Texto adicionado às fontes deste notebook." });
+        setAiSourceTopic("");
+        setAiSourceOpen(false);
+      }
+    } catch {
+      toast({ title: "Erro de rede", variant: "destructive" });
+    }
+    setAiSourceLoading(false);
   };
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -779,6 +987,9 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
                 {uploadingPdf ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
                 Upload PDF
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setAiSourceOpen(true)} className="text-xs text-primary">
+                <Sparkles className="w-3.5 h-3.5 mr-1" /> Gerar Fonte via IA
+              </Button>
             </div>
 
             {showAddSource && (
@@ -805,6 +1016,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
                 <div className="shrink-0 mt-0.5">
                   {source.source_type === "task_note" ? <BookOpen className="w-4 h-4 text-primary" /> :
                    source.source_type === "pdf" ? <FileText className="w-4 h-4 text-neon-purple" /> :
+                   source.source_type === "ai_generated" ? <Sparkles className="w-4 h-4 text-primary" /> :
                    source.url ? <Link className="w-4 h-4 text-neon-blue" /> :
                    <FileText className="w-4 h-4 text-neon-orange" />}
                 </div>
@@ -1001,11 +1213,11 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
               <Label className="text-xs text-muted-foreground">Dificuldade</Label>
               <Select value={quizDifficulty} onValueChange={setQuizDifficulty}>
                 <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200]">
                   <SelectItem value="Fácil">Fácil</SelectItem>
                   <SelectItem value="Médio">Médio</SelectItem>
                   <SelectItem value="Difícil">Difícil</SelectItem>
-                  <SelectItem value="Nível EsPCEx">Nível EsPCEx</SelectItem>
+                  <SelectItem value="Extra-Difícil">Extra-Difícil</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1018,6 +1230,36 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
             <Button variant="outline" onClick={() => setQuizOptionsOpen(false)}>Cancelar</Button>
             <Button onClick={handleGenerateQuiz} className="bg-primary text-primary-foreground glow-pink">
               <Sparkles className="w-4 h-4 mr-1" /> Gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Source generation dialog */}
+      <Dialog open={aiSourceOpen} onOpenChange={(o) => { if (!aiSourceLoading) setAiSourceOpen(o); }}>
+        <DialogContent className="bg-card neu-flat z-[120] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Gerar Fonte via IA</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Label className="text-xs text-muted-foreground">Sobre o que você quer que a IA pesquise/escreva?</Label>
+            <Textarea
+              value={aiSourceTopic}
+              onChange={e => setAiSourceTopic(e.target.value)}
+              placeholder="Ex: Princípio da conservação do momento linear com exemplos resolvidos"
+              className="bg-secondary border-border/50 min-h-[100px]"
+              disabled={aiSourceLoading}
+            />
+            {aiSourceLoading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> A IA está pesquisando e redigindo a fonte...
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={aiSourceLoading} onClick={() => setAiSourceOpen(false)}>Cancelar</Button>
+            <Button onClick={handleGenerateAiSource} disabled={aiSourceLoading || !aiSourceTopic.trim()} className="bg-primary text-primary-foreground glow-pink">
+              {aiSourceLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />} Gerar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -88,7 +88,7 @@ Tamanho alvo: 400-800 palavras.`;
         "Fácil": "Mantenha as questões em nível introdutório, com pegadinhas mínimas.",
         "Médio": "Equilibre questões diretas com aplicações práticas.",
         "Difícil": "Inclua questões com raciocínio multietapa e distratores fortes.",
-        "Nível EsPCEx": "Use o estilo da prova da EsPCEx: questões objetivas, técnicas, com nível de dificuldade alto, redação formal e enunciados curtos.",
+        "Extra-Difícil": "Nível máximo: questões com raciocínio multietapa, distratores muito fortes, enunciados técnicos e formais, estilo prova de concurso de alto nível.",
       }[diff] ?? "";
 
       const systemPrompt = `Você é um tutor especializado em gerar quizzes interativos.

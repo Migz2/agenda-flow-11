@@ -1001,7 +1001,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
               <Label className="text-xs text-muted-foreground">Dificuldade</Label>
               <Select value={quizDifficulty} onValueChange={setQuizDifficulty}>
                 <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200]">
                   <SelectItem value="Fácil">Fácil</SelectItem>
                   <SelectItem value="Médio">Médio</SelectItem>
                   <SelectItem value="Difícil">Difícil</SelectItem>

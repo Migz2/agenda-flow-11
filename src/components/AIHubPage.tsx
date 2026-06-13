@@ -744,6 +744,10 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
   const [feynmanInput, setFeynmanInput] = useState("");
   const [feynmanResult, setFeynmanResult] = useState("");
   const [feynmanStreaming, setFeynmanStreaming] = useState(false);
+  // AI source generation
+  const [aiSourceOpen, setAiSourceOpen] = useState(false);
+  const [aiSourceTopic, setAiSourceTopic] = useState("");
+  const [aiSourceLoading, setAiSourceLoading] = useState(false);
   // Quiz options
   const [quizOptionsOpen, setQuizOptionsOpen] = useState(false);
   const [quizCount, setQuizCount] = useState(10);
@@ -800,6 +804,30 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
     if (!newSourceTitle.trim()) return;
     await addSource({ title: newSourceTitle, content: newSourceContent, source_type: newSourceUrl ? "link" : "manual", url: newSourceUrl });
     setNewSourceTitle(""); setNewSourceContent(""); setNewSourceUrl(""); setShowAddSource(false);
+  };
+
+  const handleGenerateAiSource = async () => {
+    if (!aiSourceTopic.trim() || aiSourceLoading) return;
+    setAiSourceLoading(true);
+    try {
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ type: "generate_source", topic: aiSourceTopic.trim() }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.content) {
+        toast({ title: "Erro", description: data.error || "Falha ao gerar fonte", variant: "destructive" });
+      } else {
+        await addSource({ title: `✨ ${data.title || aiSourceTopic.trim()}`, content: data.content, source_type: "ai_generated" });
+        toast({ title: "Fonte gerada", description: "Texto adicionado às fontes deste notebook." });
+        setAiSourceTopic("");
+        setAiSourceOpen(false);
+      }
+    } catch {
+      toast({ title: "Erro de rede", variant: "destructive" });
+    }
+    setAiSourceLoading(false);
   };
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -958,6 +986,9 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingPdf} className="text-xs">
                 {uploadingPdf ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
                 Upload PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setAiSourceOpen(true)} className="text-xs text-primary">
+                <Sparkles className="w-3.5 h-3.5 mr-1" /> Gerar Fonte via IA
               </Button>
             </div>
 

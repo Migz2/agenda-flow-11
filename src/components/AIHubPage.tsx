@@ -1005,7 +1005,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
                   <SelectItem value="Fácil">Fácil</SelectItem>
                   <SelectItem value="Médio">Médio</SelectItem>
                   <SelectItem value="Difícil">Difícil</SelectItem>
-                  <SelectItem value="Nível EsPCEx">Nível EsPCEx</SelectItem>
+                  <SelectItem value="Extra-Difícil">Extra-Difícil</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -1016,6 +1016,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
                 <div className="shrink-0 mt-0.5">
                   {source.source_type === "task_note" ? <BookOpen className="w-4 h-4 text-primary" /> :
                    source.source_type === "pdf" ? <FileText className="w-4 h-4 text-neon-purple" /> :
+                   source.source_type === "ai_generated" ? <Sparkles className="w-4 h-4 text-primary" /> :
                    source.url ? <Link className="w-4 h-4 text-neon-blue" /> :
                    <FileText className="w-4 h-4 text-neon-orange" />}
                 </div>

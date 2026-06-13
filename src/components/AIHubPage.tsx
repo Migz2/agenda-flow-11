@@ -415,6 +415,89 @@ export function AIHubPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit notebook dialog */}
+      <Dialog open={!!editingNotebook} onOpenChange={(o) => !o && setEditingNotebook(null)}>
+        <DialogContent className="bg-card neu-flat z-[120]">
+          <DialogHeader><DialogTitle>Editar Notebook</DialogTitle></DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Título</Label>
+              <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-secondary border-border/50 mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Matéria</Label>
+              <Select value={editCategoryId} onValueChange={setEditCategoryId}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="none">Sem vínculo</SelectItem>
+                  {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Pasta</Label>
+              <Select value={editFolderId} onValueChange={setEditFolderId}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="none">Sem pasta</SelectItem>
+                  {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Vínculo granular (Prova · Conteúdo / Subconteúdo)</Label>
+              <Select value={editExamContentId} onValueChange={setEditExamContentId}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200] max-h-72">
+                  <SelectItem value="none">Sem vínculo</SelectItem>
+                  {examContentOpts.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingNotebook(null)}>Cancelar</Button>
+            <Button onClick={saveEditNotebook} className="bg-primary text-primary-foreground">Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Folder quiz options dialog */}
+      <Dialog open={folderQuizModalOpen} onOpenChange={setFolderQuizModalOpen}>
+        <DialogContent className="bg-card neu-flat z-[120] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Quiz da Pasta</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Quantidade de questões</Label>
+              <Input type="number" min={1} max={30} value={folderQuizCount}
+                onChange={e => setFolderQuizCount(Math.max(1, Math.min(30, parseInt(e.target.value || "1", 10))))}
+                className="bg-secondary border-border/50 mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Dificuldade</Label>
+              <Select value={folderQuizDifficulty} onValueChange={setFolderQuizDifficulty}>
+                <SelectTrigger className="bg-secondary border-border/50 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="Fácil">Fácil</SelectItem>
+                  <SelectItem value="Médio">Médio</SelectItem>
+                  <SelectItem value="Difícil">Difícil</SelectItem>
+                  <SelectItem value="Extra-Difícil">Extra-Difícil</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">Compila todas as fontes dos notebooks desta pasta e gera um quiz global com interleaving.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderQuizModalOpen(false)}>Cancelar</Button>
+            <Button onClick={generateFolderQuiz} className="bg-primary text-primary-foreground glow-pink">
+              <Sparkles className="w-4 h-4 mr-1" /> Gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

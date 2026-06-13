@@ -110,6 +110,18 @@ export function AIHubPage() {
   const [examContentOpts, setExamContentOpts] = useState<{ id: string; label: string }[]>([]);
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  // Edit notebook modal
+  const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editFolderId, setEditFolderId] = useState<string>("none");
+  const [editExamContentId, setEditExamContentId] = useState<string>("none");
+  const [editCategoryId, setEditCategoryId] = useState<string>("none");
+  // Folder quiz
+  const [folderQuizLoading, setFolderQuizLoading] = useState(false);
+  const [folderQuizQuestions, setFolderQuizQuestions] = useState<QuizQuestion[] | null>(null);
+  const [folderQuizCount, setFolderQuizCount] = useState(10);
+  const [folderQuizDifficulty, setFolderQuizDifficulty] = useState("Médio");
+  const [folderQuizModalOpen, setFolderQuizModalOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -154,6 +166,81 @@ export function AIHubPage() {
     : activeFolderId === "none"
       ? notebooks.filter(n => !n.folder_id)
       : notebooks.filter(n => n.folder_id === activeFolderId);
+
+  const openEditNotebook = (nb: Notebook) => {
+    setEditingNotebook(nb);
+    setEditTitle(nb.title);
+    setEditFolderId(nb.folder_id ?? "none");
+    setEditExamContentId(nb.exam_content_id ?? "none");
+    setEditCategoryId(nb.category_id ?? "none");
+  };
+
+  const saveEditNotebook = async () => {
+    if (!editingNotebook) return;
+    await updateNotebook(editingNotebook.id, {
+      title: editTitle.trim() || editingNotebook.title,
+      folder_id: editFolderId === "none" ? null : editFolderId,
+      exam_content_id: editExamContentId === "none" ? null : editExamContentId,
+      category_id: editCategoryId === "none" ? null : editCategoryId,
+    } as any);
+    setEditingNotebook(null);
+    toast({ title: "Notebook atualizado" });
+  };
+
+  const generateFolderQuiz = async () => {
+    if (activeFolderId === "all" || activeFolderId === "none") return;
+    setFolderQuizModalOpen(false);
+    setFolderQuizLoading(true);
+    try {
+      const folderNotebooks = notebooks.filter(n => n.folder_id === activeFolderId);
+      if (folderNotebooks.length === 0) {
+        toast({ title: "Pasta vazia", variant: "destructive" });
+        setFolderQuizLoading(false);
+        return;
+      }
+      const ids = folderNotebooks.map(n => n.id);
+      const { data: allSources } = await supabase
+        .from("notebook_sources").select("title,content,notebook_id").in("notebook_id", ids);
+      const sources = (allSources ?? []).map((s: any) => ({ title: s.title, content: s.content }));
+      if (sources.length === 0) {
+        toast({ title: "Sem fontes nessa pasta", variant: "destructive" });
+        setFolderQuizLoading(false);
+        return;
+      }
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ type: "quiz", sources, interleaving: true, count: folderQuizCount, difficulty: folderQuizDifficulty }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.questions) {
+        toast({ title: "Erro", description: data.error || "Falha ao gerar quiz", variant: "destructive" });
+      } else {
+        setFolderQuizQuestions(data.questions);
+      }
+    } catch {
+      toast({ title: "Erro de rede", variant: "destructive" });
+    }
+    setFolderQuizLoading(false);
+  };
+
+  if (folderQuizQuestions) {
+    return (
+      <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" /> Quiz da Pasta
+          </h2>
+          <Button variant="outline" size="sm" onClick={() => setFolderQuizQuestions(null)}>Fechar</Button>
+        </div>
+        <QuizView
+          questions={folderQuizQuestions}
+          sources={[]}
+          onBack={() => setFolderQuizQuestions(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-4 lg:p-8 overflow-y-auto pt-20">

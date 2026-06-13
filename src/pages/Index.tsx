@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { FloatingTopBar } from "@/components/FloatingTopBar";
 import { TimelinePlanner } from "@/components/TimelinePlanner";
 import { TaskListPage } from "@/components/TaskListPage";
@@ -38,7 +39,18 @@ const Index = () => {
       <div className="min-h-screen bg-background bg-grid">
         <FloatingTopBar currentPage={currentPage} onNavigate={setCurrentPage} />
         <div className="flex-1 flex flex-col min-w-0">
-          {renderPage()}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="flex-1 flex flex-col min-w-0"
+            >
+              {renderPage()}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Notes Panel (accessible from Focus Mode) */}

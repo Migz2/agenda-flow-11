@@ -1233,6 +1233,36 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Source generation dialog */}
+      <Dialog open={aiSourceOpen} onOpenChange={(o) => { if (!aiSourceLoading) setAiSourceOpen(o); }}>
+        <DialogContent className="bg-card neu-flat z-[120] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Gerar Fonte via IA</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Label className="text-xs text-muted-foreground">Sobre o que você quer que a IA pesquise/escreva?</Label>
+            <Textarea
+              value={aiSourceTopic}
+              onChange={e => setAiSourceTopic(e.target.value)}
+              placeholder="Ex: Princípio da conservação do momento linear com exemplos resolvidos"
+              className="bg-secondary border-border/50 min-h-[100px]"
+              disabled={aiSourceLoading}
+            />
+            {aiSourceLoading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> A IA está pesquisando e redigindo a fonte...
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={aiSourceLoading} onClick={() => setAiSourceOpen(false)}>Cancelar</Button>
+            <Button onClick={handleGenerateAiSource} disabled={aiSourceLoading || !aiSourceTopic.trim()} className="bg-primary text-primary-foreground glow-pink">
+              {aiSourceLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />} Gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -282,6 +282,15 @@ export function AIHubPage() {
           className="px-3 py-1.5 rounded-xl neu-btn text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
           <FolderPlus className="w-3.5 h-3.5" /> Nova pasta
         </button>
+        {activeFolderId !== "all" && activeFolderId !== "none" && (
+          <button
+            onClick={() => setFolderQuizModalOpen(true)}
+            disabled={folderQuizLoading}
+            className="px-3 py-1.5 rounded-xl neu-btn text-xs text-primary flex items-center gap-1">
+            {folderQuizLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            Gerar Quiz da Pasta
+          </button>
+        )}
       </div>
 
       <AnimatePresence>
@@ -369,6 +378,7 @@ export function AIHubPage() {
                       {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <button onClick={() => openEditNotebook(nb)} className="text-muted-foreground hover:text-foreground" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => deleteNotebook(nb.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>

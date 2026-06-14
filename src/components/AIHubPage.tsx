@@ -20,6 +20,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/study-ai`;
 
+async function getAiAuthHeaders() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (error || !accessToken) {
+    throw new Error("Sessão expirada. Faça login novamente para usar a IA.");
+  }
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  };
+}
+
 interface QuizQuestion {
   question: string;
   options: { label: string; text: string; explanation: string }[];
@@ -38,12 +50,17 @@ async function streamChat({
   type?: string;
   question?: string;
 }) {
+  let headers: Awaited<ReturnType<typeof getAiAuthHeaders>>;
+  try {
+    headers = await getAiAuthHeaders();
+  } catch (err: any) {
+    onError(err?.message || "Sessão expirada. Faça login novamente.");
+    return;
+  }
+
   const resp = await fetch(CHAT_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
+    headers,
     body: JSON.stringify({ messages, mode, sources, type: type || "chat", question }),
   });
 

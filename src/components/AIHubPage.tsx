@@ -226,7 +226,7 @@ export function AIHubPage() {
       }
       const resp = await fetch(CHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: await getAiAuthHeaders(),
         body: JSON.stringify({ type: "quiz", sources, interleaving: true, count: folderQuizCount, difficulty: folderQuizDifficulty }),
       });
       const data = await resp.json();
@@ -829,7 +829,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
     try {
       const resp = await fetch(CHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: await getAiAuthHeaders(),
         body: JSON.stringify({ type: "generate_source", topic: aiSourceTopic.trim() }),
       });
       const data = await resp.json();
@@ -877,7 +877,7 @@ function NotebookView({ notebook, onBack, categories }: { notebook: Notebook; on
     try {
       const resp = await fetch(CHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: await getAiAuthHeaders(),
         body: JSON.stringify({
           type: "quiz",
           sources: sources.map(s => ({ title: s.title, content: s.content })),

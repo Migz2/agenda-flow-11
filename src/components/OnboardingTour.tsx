@@ -117,6 +117,12 @@ export function OnboardingTour({ currentPage, onNavigate }: Props) {
         showProgress: true,
         overlayClickAction: false,
         buttons: ["back", "skip", "primary"],
+        backgroundColor: "hsl(var(--card))",
+        arrowColor: "hsl(var(--card))",
+        primaryColor: "hsl(var(--primary))",
+        textColor: "hsl(var(--foreground))",
+        overlayColor: "rgba(0,0,0,0.65)",
+        zIndex: 10000,
       }}
       locale={{
         back: "Voltar",
@@ -124,16 +130,6 @@ export function OnboardingTour({ currentPage, onNavigate }: Props) {
         last: "Concluir",
         next: "Próximo",
         skip: "Pular tour",
-      }}
-      styles={{
-        options: {
-          arrowColor: "hsl(var(--card))",
-          backgroundColor: "hsl(var(--card))",
-          primaryColor: "hsl(var(--primary))",
-          textColor: "hsl(var(--foreground))",
-          overlayColor: "rgba(0,0,0,0.65)",
-          zIndex: 10000,
-        },
       }}
     />
   );

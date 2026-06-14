@@ -143,7 +143,7 @@ Todas as perguntas em português do Brasil.`;
         return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (parseErr) {
         console.error("Raw AI quiz response (parse failure):", content, parseErr);
-        return new Response(JSON.stringify({ error: "Falha ao parsear quiz. Tente novamente.", raw: content.slice(0, 500) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Falha ao parsear quiz. Tente novamente." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 

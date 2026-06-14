@@ -11,6 +11,7 @@ import { MetaDashboard } from "@/components/MetaDashboard";
 import { PerformancePage } from "@/components/EsPCExPerformance";
 import { ProfilePage } from "@/components/ProfilePage";
 import { NotesPanel } from "@/components/NotesPanel";
+import { OnboardingTour } from "@/components/OnboardingTour";
 import { FocusTimerProvider } from "@/hooks/useFocusTimer";
 import { type DbTask } from "@/hooks/useTasks";
 
@@ -60,6 +61,8 @@ const Index = () => {
           onEdit={() => {}}
           onToggleComplete={() => {}}
         />
+
+        <OnboardingTour currentPage={currentPage} onNavigate={setCurrentPage} />
       </div>
     </FocusTimerProvider>
   );

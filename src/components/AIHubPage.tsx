@@ -351,7 +351,7 @@ export function AIHubPage() {
       </AnimatePresence>
 
       {!showNewForm && (
-        <button onClick={() => setShowNewForm(true)} className="w-full py-4 border-2 border-dashed border-border/40 rounded-2xl text-muted-foreground hover:text-foreground hover:border-border/80 transition-all flex items-center justify-center gap-2 mb-6">
+        <button data-tour="aihub-new" onClick={() => setShowNewForm(true)} className="w-full py-4 border-2 border-dashed border-border/40 rounded-2xl text-muted-foreground hover:text-foreground hover:border-border/80 transition-all flex items-center justify-center gap-2 mb-6">
           <Plus className="w-5 h-5" /><span className="text-sm font-medium">Novo Notebook</span>
         </button>
       )}

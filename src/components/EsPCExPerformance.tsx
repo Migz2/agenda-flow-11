@@ -227,7 +227,7 @@ export function PerformancePage() {
           </h2>
           <p className="text-sm text-muted-foreground mt-1">Acompanhe o desempenho em provas anteriores por conteúdo e subconteúdo.</p>
         </div>
-        <Button onClick={() => { setEditing(null); setModalOpen(true); }} className="bg-primary text-primary-foreground neu-raised">
+        <Button data-tour="register-exam" onClick={() => { setEditing(null); setModalOpen(true); }} className="bg-primary text-primary-foreground neu-raised">
           <Plus className="w-4 h-4 mr-1" /> Registrar Prova
         </Button>
       </div>

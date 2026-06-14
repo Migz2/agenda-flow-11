@@ -718,6 +718,7 @@ export function StudyRoutineGenerator() {
               </button>
             )}
             <Button
+              data-tour="generate-routine"
               onClick={handleGenerate}
               disabled={generating}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-pink py-6 text-base font-display font-semibold"

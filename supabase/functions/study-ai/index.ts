@@ -50,9 +50,16 @@ serve(async (req) => {
       });
     }
 
-    const { messages, mode, sources, type, question, interleaving, count, difficulty, topic } = await req.json();
-
-    const sourcesText = (sources || []).map((s: any) => `[${s.title}]: ${s.content}`).join("\n\n");
+    let payload: any = {};
+    try { payload = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "JSON inválido no corpo da requisição." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { messages, mode, sources, type, question, interleaving, count, difficulty, topic } = payload;
+    const safeSources = Array.isArray(sources) ? sources.filter((s: any) => s && typeof s.content === "string" && s.content.trim()) : [];
+    const sourcesText = safeSources.map((s: any) => `[${s.title}]: ${s.content}`).join("\n\n");
+    const hasSources = safeSources.length > 0;
 
     if (type === "generate_source") {
       if (!topic || typeof topic !== "string" || !topic.trim()) {
@@ -62,7 +69,8 @@ serve(async (req) => {
       }
       const systemPrompt = `Você é um pesquisador acadêmico. Escreva um texto explicativo denso, didático e bem estruturado sobre o tema solicitado pelo aluno, em português do Brasil, com formatação Markdown.
 Inclua: definição, conceitos-chave, fórmulas/exemplos quando aplicável, e um pequeno resumo no final.
-Tamanho alvo: 400-800 palavras.`;
+Tamanho alvo: 400-800 palavras.
+Use seu conhecimento geral do tema mesmo que o aluno não forneça material de referência.`;
       const response = await callAI({
         model: "google/gemini-3-flash-preview",
         messages: [
@@ -91,12 +99,11 @@ Tamanho alvo: 400-800 palavras.`;
         "Extra-Difícil": "Nível máximo: questões com raciocínio multietapa, distratores muito fortes, enunciados técnicos e formais, estilo prova de concurso de alto nível.",
       }[diff] ?? "";
 
+      const contextBlock = hasSources
+        ? `Baseie-se ESTRITAMENTE nas seguintes fontes/anotações do aluno:\n\n--- FONTES ---\n${sourcesText}\n--- FIM DAS FONTES ---`
+        : `O aluno NÃO forneceu fontes específicas. Use seu conhecimento geral sobre o(s) tema(s) abaixo para gerar as questões:\n\nTEMA(S): ${topic || "tema geral de estudo"}`;
       const systemPrompt = `Você é um tutor especializado em gerar quizzes interativos.
-Baseie-se ESTRITAMENTE nas seguintes fontes/anotações do aluno:
-
---- FONTES ---
-${sourcesText}
---- FIM DAS FONTES ---
+${contextBlock}
 ${interleavingNote}
 Gere exatamente ${qCount} questões de múltipla escolha (A, B, C, D). Cada questão DEVE ter exatamente 4 alternativas.
 Dificuldade alvo: ${diff}. ${difficultyNote}

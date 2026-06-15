@@ -156,6 +156,35 @@ export function AIHubPage() {
     })();
   }, []);
 
+  // Listen for diagnostic quiz request from StudyRoutineGenerator
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      const topic = detail.topic || "Conteúdos gerais";
+      setFolderQuizLoading(true);
+      try {
+        const resp = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: await getAiAuthHeaders(),
+          body: JSON.stringify({ type: "quiz", sources: [], topic, count: 10, difficulty: "Médio" }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.questions) {
+          toast({ title: "Erro", description: data.error || "Falha ao gerar simulado", variant: "destructive" });
+        } else {
+          setFolderQuizQuestions(data.questions);
+          toast({ title: "Simulado pronto! 🎯", description: "Responda para calibrar suas métricas." });
+        }
+      } catch {
+        toast({ title: "Erro de rede", variant: "destructive" });
+      } finally {
+        setFolderQuizLoading(false);
+      }
+    };
+    window.addEventListener("aihub:diagnostic-quiz", handler);
+    return () => window.removeEventListener("aihub:diagnostic-quiz", handler);
+  }, []);
+
   if (selectedNotebook) {
     return <NotebookView notebook={selectedNotebook} onBack={() => setSelectedNotebook(null)} categories={categories} />;
   }

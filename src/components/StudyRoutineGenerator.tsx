@@ -843,6 +843,26 @@ export function StudyRoutineGenerator({ onNavigate }: StudyRoutineGeneratorProps
           <p className="text-xs text-muted-foreground mt-1">Edite rotinas ativas sem alterar o histórico passado.</p>
         </div>
       </div>
+
+      {/* Diagnostic prompt */}
+      <Dialog open={diagModalOpen} onOpenChange={setDiagModalOpen}>
+        <DialogContent className="bg-card neu-flat z-[120] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> Simulado Diagnóstico
+            </DialogTitle>
+            <DialogDescription>
+              Você ainda não possui histórico de desempenho. Deseja gerar um Simulado Diagnóstico para calibrar suas prioridades?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDiagModalOpen(false)}>Agora não</Button>
+            <Button onClick={handleAcceptDiagnostic} className="bg-primary text-primary-foreground glow-pink">
+              <Sparkles className="w-4 h-4 mr-1" /> Gerar Simulado
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

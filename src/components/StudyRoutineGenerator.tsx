@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useProfile } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, GraduationCap, Sparkles, BookOpen, History, Pencil, Clock, AlertTriangle, Minus } from "lucide-react";
+import { Plus, Trash2, GraduationCap, Sparkles, BookOpen, History, Pencil, Clock, AlertTriangle, Minus, Wand2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,9 @@ import { Slider } from "@/components/ui/slider";
 import { useAllTasks, useCustomCategories, useStudyGenerations, type NewTask, type DbTask } from "@/hooks/useTasks";
 import { useStudyRoutines, type StudyRoutine } from "@/hooks/useStudyRoutines";
 import { toast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const WEEK_DAYS = [
   { id: 0, label: "Dom" },
@@ -225,9 +228,14 @@ function Stepper({ value, onChange, min, max, label }: { value: number; onChange
   );
 }
 
-export function StudyRoutineGenerator() {
+interface StudyRoutineGeneratorProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function StudyRoutineGenerator({ onNavigate }: StudyRoutineGeneratorProps = {}) {
   const { tasks: allTasks, addTasksBatch } = useAllTasks();
-  const { addCategory } = useCustomCategories();
+  const { addCategory, categories } = useCustomCategories();
+  const { user } = useAuth();
   const { generations, addGeneration, deleteGeneration } = useStudyGenerations();
   const { routines, addRoutine, updateRoutine, deleteRoutine, deleteFutureTasks } = useStudyRoutines();
   const { profile } = useProfile();
@@ -235,6 +243,8 @@ export function StudyRoutineGenerator() {
   const [weeksAhead, setWeeksAhead] = useState(4);
   const [generating, setGenerating] = useState(false);
   const [useChronoSchedule, setUseChronoSchedule] = useState(false);
+  const [autoConfiguring, setAutoConfiguring] = useState(false);
+  const [diagModalOpen, setDiagModalOpen] = useState(false);
 
   const chronoStartHour = profile?.chronotype === "lion" ? 6 : profile?.chronotype === "wolf" ? 19 : 9;
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -384,6 +394,71 @@ export function StudyRoutineGenerator() {
     await deleteGeneration(id, batchId);
     toast({ title: "Rotina apagada", description: "Todas as tarefas do lote foram removidas." });
     setDeleting(null);
+  };
+
+  const handleAutoConfigure = async () => {
+    if (!user) return;
+    setAutoConfiguring(true);
+    try {
+      const { data: sessions } = await supabase
+        .from("quiz_sessions")
+        .select("correct, total_questions, notebook_id")
+        .eq("user_id", user.id);
+      const totalCorrect = (sessions ?? []).reduce((s: number, r: any) => s + (r.correct || 0), 0);
+      if (totalCorrect === 0) {
+        setDiagModalOpen(true);
+        return;
+      }
+      // Build per-category accuracy via notebooks
+      const nbIds = Array.from(new Set((sessions ?? []).map((s: any) => s.notebook_id).filter(Boolean)));
+      const { data: nbs } = nbIds.length
+        ? await supabase.from("notebooks").select("id,category_id,title").in("id", nbIds)
+        : { data: [] as any[] };
+      const accByCat: Record<string, { correct: number; total: number }> = {};
+      (sessions ?? []).forEach((s: any) => {
+        const nb = (nbs ?? []).find((n: any) => n.id === s.notebook_id);
+        const catKey = nb?.category_id || "_none";
+        accByCat[catKey] ??= { correct: 0, total: 0 };
+        accByCat[catKey].correct += s.correct || 0;
+        accByCat[catKey].total += s.total_questions || 0;
+      });
+      const seeded: SubjectForm[] = categories.slice(0, 6).map((c, idx) => {
+        const acc = accByCat[c.id];
+        const pct = acc && acc.total > 0 ? (acc.correct / acc.total) * 100 : 100;
+        const priority: "low" | "medium" | "high" = pct < 50 ? "high" : pct < 75 ? "medium" : "low";
+        return {
+          id: crypto.randomUUID(),
+          name: c.name,
+          days: [1, 3, 5],
+          learningType: "practice",
+          color: c.color || PALETTE[idx % PALETTE.length],
+          studyBlocks: priority === "high" ? 3 : 2,
+          revisions: priority === "high" ? 4 : 3,
+          preparation: 1,
+          blockDuration: 50,
+          priority,
+        };
+      });
+      if (seeded.length === 0) {
+        toast({ title: "Sem matérias", description: "Cadastre matérias no Desempenho antes de auto-configurar.", variant: "destructive" });
+      } else {
+        setSubjects(seeded);
+        toast({ title: "Auto-configurado ✨", description: `${seeded.length} matérias priorizadas pelo seu desempenho.` });
+      }
+    } catch (e) {
+      toast({ title: "Erro", description: "Falha ao auto-configurar.", variant: "destructive" });
+    } finally {
+      setAutoConfiguring(false);
+    }
+  };
+
+  const handleAcceptDiagnostic = () => {
+    setDiagModalOpen(false);
+    const topics = categories.map(c => c.name).filter(Boolean);
+    window.dispatchEvent(new CustomEvent("aihub:diagnostic-quiz", {
+      detail: { topic: topics.length ? topics.join(", ") : "Conteúdos gerais do seu estudo" },
+    }));
+    onNavigate?.("aihub");
   };
 
   const startEditRoutine = (routine: StudyRoutine) => {

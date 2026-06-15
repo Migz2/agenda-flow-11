@@ -490,6 +490,22 @@ export function StudyRoutineGenerator({ onNavigate }: StudyRoutineGeneratorProps
         </p>
       </div>
 
+      {/* Auto-configure CTA */}
+      <div className="mb-6">
+        <Button
+          onClick={handleAutoConfigure}
+          disabled={autoConfiguring}
+          variant="outline"
+          className="w-full py-5 neu-btn text-foreground border-primary/30 hover:border-primary/60"
+        >
+          <Wand2 className="w-4 h-4 mr-2 text-primary" />
+          {autoConfiguring ? "Analisando desempenho..." : "✨ Auto-Configurar via Desempenho"}
+        </Button>
+        <p className="text-[11px] text-muted-foreground mt-2 text-center">
+          Preenche matérias com prioridade baseada no seu histórico de quizzes.
+        </p>
+      </div>
+
       {/* Active Routines */}
       {routines.length > 0 && (
         <div className="mb-8 bg-card rounded-2xl p-5 border border-border/30">

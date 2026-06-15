@@ -156,6 +156,35 @@ export function AIHubPage() {
     })();
   }, []);
 
+  // Listen for diagnostic quiz request from StudyRoutineGenerator
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      const topic = detail.topic || "Conteúdos gerais";
+      setFolderQuizLoading(true);
+      try {
+        const resp = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: await getAiAuthHeaders(),
+          body: JSON.stringify({ type: "quiz", sources: [], topic, count: 10, difficulty: "Médio" }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.questions) {
+          toast({ title: "Erro", description: data.error || "Falha ao gerar simulado", variant: "destructive" });
+        } else {
+          setFolderQuizQuestions(data.questions);
+          toast({ title: "Simulado pronto! 🎯", description: "Responda para calibrar suas métricas." });
+        }
+      } catch {
+        toast({ title: "Erro de rede", variant: "destructive" });
+      } finally {
+        setFolderQuizLoading(false);
+      }
+    };
+    window.addEventListener("aihub:diagnostic-quiz", handler);
+    return () => window.removeEventListener("aihub:diagnostic-quiz", handler);
+  }, []);
+
   if (selectedNotebook) {
     return <NotebookView notebook={selectedNotebook} onBack={() => setSelectedNotebook(null)} categories={categories} />;
   }
@@ -541,25 +570,35 @@ function FolderChip({ active, onClick, label, icon, onRename, onDelete }: {
 /* ========== Source Viewer Modal ========== */
 function SourceViewerModal({ source, onClose }: { source: any; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="relative bg-card neu-raised rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-display font-semibold text-foreground">{source.title}</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[150] bg-background overflow-y-auto"
+    >
+      <div className="sticky top-0 z-10 backdrop-blur-xl bg-background/80 border-b border-border/30">
+        <div className="max-w-[760px] mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={onClose} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Voltar
+          </button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-2 rounded-xl hover:bg-muted/40">
+            <X className="w-4 h-4" />
+          </button>
         </div>
+      </div>
+      <article className="max-w-[700px] mx-auto px-6 py-12 lg:py-16">
+        <h1 className="text-4xl lg:text-5xl font-display font-bold text-foreground leading-tight mb-6 tracking-tight">
+          {source.title}
+        </h1>
         {source.url && (
-          <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mb-3 block">{source.url}</a>
+          <a href={source.url} target="_blank" rel="noopener noreferrer"
+            className="inline-block text-sm text-primary hover:underline mb-8 break-all">
+            {source.url}
+          </a>
         )}
-        <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+        <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/90 leading-[1.8] whitespace-pre-wrap font-body">
           <ReactMarkdown>{source.content || "Sem conteúdo."}</ReactMarkdown>
         </div>
-      </motion.div>
-    </div>
+      </article>
+    </motion.div>
   );
 }
 

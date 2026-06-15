@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BarChart3, LayoutList, Calendar, Brain, Sun, Moon, LogOut, Timer, User, Target, Settings, Sparkles } from "lucide-react";
+import { BarChart3, LayoutList, Calendar, Brain, Sun, Moon, LogOut, Timer, User, Target, Settings, Sparkles, RotateCcw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -107,6 +107,15 @@ export function FloatingTopBar({ currentPage, onNavigate }: FloatingTopBarProps)
                 <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
                   {theme === "dark" ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
                   {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    localStorage.removeItem("lovable_tour_completed_v1");
+                    window.dispatchEvent(new Event("tour:start"));
+                  }}
+                  className="cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" /> Repetir Tour Guiado
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">

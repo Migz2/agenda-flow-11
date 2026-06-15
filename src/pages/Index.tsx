@@ -25,7 +25,7 @@ const Index = () => {
       case "planner": return <TimelinePlanner />;
       case "tasks": return <TaskListPage />;
       case "calendar": return <CalendarPage />;
-      case "study": return <StudyRoutineGenerator />;
+      case "study": return <StudyRoutineGenerator onNavigate={setCurrentPage} />;
       case "aihub": return <AIHubPage />;
       case "focus": return <FocusMode onOpenNotes={(task) => setNotesTask(task)} />;
       case "performance": return <PerformancePage />;

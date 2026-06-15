@@ -93,16 +93,22 @@ export function OnboardingTour({ currentPage, onNavigate }: Props) {
         return;
       }
       const next = STEPS[nextIndex];
+      setRun(false);
       if (next.page !== currentPage) {
-        setRun(false);
         onNavigate(next.page);
-        setTimeout(() => {
+      }
+      // Poll for the target element before resuming the tour.
+      const startedAt = Date.now();
+      const waitForTarget = () => {
+        const el = typeof next.target === "string" ? document.querySelector(next.target) : null;
+        if (el || Date.now() - startedAt > 2500) {
           setStepIndex(nextIndex);
           setRun(true);
-        }, 450);
-      } else {
-        setStepIndex(nextIndex);
-      }
+          return;
+        }
+        setTimeout(waitForTarget, 100);
+      };
+      setTimeout(waitForTarget, 250);
     }
   };
 
